@@ -1,7 +1,7 @@
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version='1.0' encoding='utf-8'?>
 <resources>
     <string name="app_name">Samsung Gear 360 Control</string>
     <string name="title_activity_main">Samsung Gear 360 Control</string>
-    <string name="package_name">app.lovable.4bc2049b140e4215849c3414348558df</string>
-    <string name="custom_url_scheme">app.lovable.4bc2049b140e4215849c3414348558df</string>
+    <string name="package_name">app.lovable.id4bc2049b140e4215849c3414348558df</string>
+    <string name="custom_url_scheme">app.lovable.id4bc2049b140e4215849c3414348558df</string>
 </resources>

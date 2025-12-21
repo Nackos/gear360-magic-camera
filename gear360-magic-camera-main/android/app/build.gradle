@@ -1,84 +1,46 @@
 apply plugin: 'com.android.application'
 
-def keystorePropertiesFile = rootProject.file("keystore.properties")
-def keystoreProperties = new Properties()
-if (keystorePropertiesFile.exists()) {
-    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
-}
-
-def hasSigningConfig = keystoreProperties.containsKey('storeFile') && 
-                      file(keystoreProperties['storeFile']).exists() &&
-                      keystoreProperties.containsKey('storePassword') && 
-                      keystoreProperties.containsKey('keyAlias') && 
-                      keystoreProperties.containsKey('keyPassword')
-
 android {
-    namespace "app.lovable.4bc2049b140e4215849c3414348558df"
+    namespace "app.lovable.id4bc2049b140e4215849c3414348558df"
     compileSdk rootProject.ext.compileSdkVersion
-
     defaultConfig {
-        applicationId "app.lovable.4bc2049b140e4215849c3414348558df"
-        minSdk rootProject.ext.minSdkVersion
-        targetSdk rootProject.ext.targetSdkVersion
-
+        applicationId "app.lovable.id4bc2049b140e4215849c3414348558df"
+        minSdkVersion rootProject.ext.minSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
-        versionName "1.0.0"
-
+        versionName "1.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        aaptOptions {
+             // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
+             // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
+            ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
+        }
     }
-
-    androidResources {
-        ignoreAssetsPattern "!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~"
-    }
-
     signingConfigs {
-        if (hasSigningConfig) {
-            release {
-                keyAlias keystoreProperties['keyAlias']
-                keyPassword keystoreProperties['keyPassword']
-                storeFile file(keystoreProperties['storeFile'])
-                storePassword keystoreProperties['storePassword']
-            }
-        }
-    }
-
-    buildTypes {
-
-        debug {
-            // APK directement installable
-            minifyEnabled false
-            applicationIdSuffix ".debug"
-            versionNameSuffix "-debug"
-        }
-
         release {
-            // APK release signée automatiquement
-            minifyEnabled true
-            shrinkResources true
+            def keystoreFile = new File(rootProject.projectDir, 'keystore.properties')
+            if (keystoreFile.exists()) {
+                def props = new Properties()
+                props.load(new FileInputStream(keystoreFile))
 
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
-            )
-
-            // Application conditionnelle de la signature
-            if (hasSigningConfig) {
-                signingConfig signingConfigs.release
-            } else {
-                signingConfig signingConfigs.debug
-                logger.warn("WARNING: Signing properties missing or incorrect. Falling back to debug signing.")
+                storeFile = file(props['storeFile'])
+                storePassword = props['storePassword']
+                keyAlias = props['keyAlias']
+                keyPassword = props['keyPassword']
             }
         }
     }
-
-    compileOptions {
-        sourceCompatibility JavaVersion.VERSION_11
-        targetCompatibility JavaVersion.VERSION_11
+    buildTypes {
+        release {
+            signingConfig signingConfigs.release
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
     }
 }
 
 repositories {
-    flatDir {
+    flatDir{
         dirs '../capacitor-cordova-android-plugins/src/main/libs', 'libs'
     }
 }
@@ -86,8 +48,8 @@ repositories {
 dependencies {
     implementation fileTree(include: ['*.jar'], dir: 'libs')
     implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
-    implementation "androidx.core:core-ktx:$androidxCoreKTXVersion"
     implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
+    implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
     implementation project(':capacitor-android')
     testImplementation "junit:junit:$junitVersion"
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
@@ -102,6 +64,6 @@ try {
     if (servicesJSON.text) {
         apply plugin: 'com.google.gms.google-services'
     }
-} catch (Exception e) {
-    logger.info("google-services.json not found, google-services plugin not applied. Push Notification won't work")
+} catch(Exception e) {
+    logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
 }

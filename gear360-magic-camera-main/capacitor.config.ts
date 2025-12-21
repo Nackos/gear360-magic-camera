@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'app.lovable.4bc2049b140e4215849c3414348558df',
+  appId: 'app.lovable.id4bc2049b140e4215849c3414348558df',
   appName: 'Samsung Gear 360 Control',
   webDir: 'dist',
   server: {
