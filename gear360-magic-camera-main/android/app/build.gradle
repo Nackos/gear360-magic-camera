@@ -6,6 +6,12 @@ if (keystorePropertiesFile.exists()) {
     keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
 }
 
+def hasSigningConfig = keystoreProperties.containsKey('storeFile') && 
+                      file(keystoreProperties['storeFile']).exists() &&
+                      keystoreProperties.containsKey('storePassword') && 
+                      keystoreProperties.containsKey('keyAlias') && 
+                      keystoreProperties.containsKey('keyPassword')
+
 android {
     namespace "app.lovable.4bc2049b140e4215849c3414348558df"
     compileSdk rootProject.ext.compileSdkVersion
@@ -26,11 +32,13 @@ android {
     }
 
     signingConfigs {
-        release {
-            keyAlias keystoreProperties['keyAlias']
-            keyPassword keystoreProperties['keyPassword']
-            storeFile file(keystoreProperties['storeFile'])
-            storePassword keystoreProperties['storePassword']
+        if (hasSigningConfig) {
+            release {
+                keyAlias keystoreProperties['keyAlias']
+                keyPassword keystoreProperties['keyPassword']
+                storeFile file(keystoreProperties['storeFile'])
+                storePassword keystoreProperties['storePassword']
+            }
         }
     }
 
@@ -44,7 +52,7 @@ android {
         }
 
         release {
-            // APK release signée automatiquement si keystore absent
+            // APK release signée automatiquement
             minifyEnabled true
             shrinkResources true
 
@@ -53,8 +61,13 @@ android {
                 "proguard-rules.pro"
             )
 
-            // IMPORTANT pour APK hors Play Store
-            signingConfig signingConfigs.release
+            // Application conditionnelle de la signature
+            if (hasSigningConfig) {
+                signingConfig signingConfigs.release
+            } else {
+                signingConfig signingConfigs.debug
+                logger.warn("WARNING: Signing properties missing or incorrect. Falling back to debug signing.")
+            }
         }
     }
 
