@@ -206,9 +206,16 @@ Les contributions sont les bienvenues !
 4. Push vers la branche (`git push origin feature/AmazingFeature`)
 5. Ouvrez une Pull Request
 
-## 📝 Changelog
+### Changelog
 
-### Version Actuelle
+### Version [2025.12.22] - Maintenance
+- 🔄 Mise à jour des dépendances NPM (minor/patch)
+- 🌐 Mise à jour de la base de données Browserslist
+- 🛠️ Correction de nombreux problèmes de lint (typographie, importations, sécurité)
+- 🏗️ Amélioration de la robustesse et de la sécurité des types (TS)
+- ✅ Vérification de la stabilité du build
+
+### Version Initial Actuelle
 - ✨ Application caméra 360° complète
 - 🤖 Intégration IA avancée (YOLO, MediaPipe, TensorFlow)
 - 🎙️ Contrôle vocal en français

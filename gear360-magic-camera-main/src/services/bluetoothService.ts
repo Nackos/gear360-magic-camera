@@ -16,8 +16,10 @@ export interface BluetoothScanResult {
   isScanning: boolean;
 }
 
+type BluetoothListener = (data?: unknown) => void;
+
 class BluetoothService {
-  private eventListeners: Map<string, Function[]> = new Map();
+  private eventListeners: Map<string, BluetoothListener[]> = new Map();
   private connectedDevice: BluetoothDevice | null = null;
   private isScanning = false;
 
@@ -58,7 +60,7 @@ class BluetoothService {
 
     console.log('🔍 Starting Bluetooth scan...');
     this.isScanning = true;
-    
+
     if (!Capacitor.isNativePlatform()) {
       // Simulation pour le développement web
       setTimeout(() => {
@@ -84,7 +86,7 @@ class BluetoothService {
             services: ['camera', 'battery', 'wifi']
           }
         ];
-        
+
         this.emit('devicesFound', mockDevices);
         this.isScanning = false;
       }, 3000);
@@ -108,7 +110,7 @@ class BluetoothService {
     if (!this.isScanning) return;
 
     console.log('⏹️ Stopping Bluetooth scan...');
-    
+
     if (!Capacitor.isNativePlatform()) {
       this.isScanning = false;
       return;
@@ -123,25 +125,25 @@ class BluetoothService {
   }
 
   // Vérifier si un appareil est une Gear 360
-  private isGear360Device(device: any): boolean {
+  private isGear360Device(device: { name?: string }): boolean {
     const gear360Names = [
       /samsung.*gear.*360/i,
       /gear360/i,
       /sm-r210/i,
       /sm-r200/i
     ];
-    
+
     return gear360Names.some(pattern => pattern.test(device.name || ''));
   }
 
   // Se connecter à un appareil
   async connectToDevice(deviceId: string): Promise<boolean> {
     console.log(`🔗 Connecting to Bluetooth device: ${deviceId}`);
-    
+
     if (!Capacitor.isNativePlatform()) {
       // Simulation pour le développement
       await new Promise(resolve => setTimeout(resolve, 2000));
-      
+
       this.connectedDevice = {
         id: deviceId,
         name: 'Samsung Gear 360',
@@ -152,7 +154,7 @@ class BluetoothService {
         isGear360: true,
         services: ['camera', 'battery']
       };
-      
+
       this.emit('deviceConnected', this.connectedDevice);
       return true;
     }
@@ -160,10 +162,10 @@ class BluetoothService {
     try {
       // Ici on se connecterait via Bluetooth
       // const result = await BluetoothLE.connect({ address: deviceId });
-      
+
       // Découvrir les services
       // await BluetoothLE.discover({ address: deviceId });
-      
+
       return true;
     } catch (error) {
       console.error('❌ Bluetooth connection failed:', error);
@@ -176,7 +178,7 @@ class BluetoothService {
     if (!this.connectedDevice) return;
 
     console.log('🔌 Disconnecting from Bluetooth device');
-    
+
     if (!Capacitor.isNativePlatform()) {
       this.connectedDevice.connected = false;
       this.emit('deviceDisconnected', this.connectedDevice);
@@ -195,7 +197,7 @@ class BluetoothService {
   // Jumeler un appareil
   async pairDevice(deviceAddress: string): Promise<boolean> {
     console.log(`🔐 Pairing with device: ${deviceAddress}`);
-    
+
     if (!Capacitor.isNativePlatform()) {
       await new Promise(resolve => setTimeout(resolve, 1500));
       return true;
@@ -211,17 +213,17 @@ class BluetoothService {
   }
 
   // Envoyer une commande à la Gear 360
-  async sendCommand(command: string, data?: any): Promise<any> {
+  async sendCommand(command: string, data?: unknown): Promise<unknown> {
     if (!this.connectedDevice || !this.connectedDevice.connected) {
       throw new Error('No device connected');
     }
 
     console.log(`📤 Sending command: ${command}`, data);
-    
+
     if (!Capacitor.isNativePlatform()) {
       // Simulation des réponses
       await new Promise(resolve => setTimeout(resolve, 500));
-      
+
       switch (command) {
         case 'capture_photo':
           return { success: true, photoId: 'photo_' + Date.now() };
@@ -251,7 +253,7 @@ class BluetoothService {
       //   characteristic,
       //   value: btoa(JSON.stringify({ command, data }))
       // });
-      
+
       return { success: true };
     } catch (error) {
       console.error('❌ Command failed:', error);
@@ -264,7 +266,7 @@ class BluetoothService {
     if (!this.connectedDevice) return;
 
     console.log('👂 Starting notifications...');
-    
+
     if (!Capacitor.isNativePlatform()) {
       // Simulation des notifications
       setInterval(() => {
@@ -329,14 +331,14 @@ class BluetoothService {
   }
 
   // Gestion des événements
-  on(event: string, callback: Function): void {
+  on(event: string, callback: BluetoothListener): void {
     if (!this.eventListeners.has(event)) {
       this.eventListeners.set(event, []);
     }
     this.eventListeners.get(event)!.push(callback);
   }
 
-  off(event: string, callback: Function): void {
+  off(event: string, callback: BluetoothListener): void {
     const listeners = this.eventListeners.get(event);
     if (listeners) {
       const index = listeners.indexOf(callback);
@@ -346,7 +348,7 @@ class BluetoothService {
     }
   }
 
-  private emit(event: string, data?: any): void {
+  private emit(event: string, data?: unknown): void {
     const listeners = this.eventListeners.get(event);
     if (listeners) {
       listeners.forEach(callback => callback(data));

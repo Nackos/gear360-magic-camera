@@ -27,22 +27,24 @@ export interface StreamInfo {
   fps: number;
 }
 
+type Gear360Listener = (data?: unknown) => void;
+
 class Gear360Service {
   private device: Gear360Device | null = null;
   private streamInfo: StreamInfo | null = null;
-  private eventListeners: Map<string, Function[]> = new Map();
+  private eventListeners: Map<string, Gear360Listener[]> = new Map();
 
   // Scanner pour détecter les caméras Gear 360
   async scanForDevices(): Promise<Gear360Device[]> {
     console.log('🔍 Scanning for Gear 360 devices...');
-    
+
     try {
       // Scan Wi-Fi networks pour les hotspots Gear 360
       const wifiDevices = await this.scanWifiDevices();
-      
+
       // Scan Bluetooth pour les appareils Gear 360
       const bluetoothDevices = await this.scanBluetoothDevices();
-      
+
       return [...wifiDevices, ...bluetoothDevices];
     } catch (error) {
       console.error('❌ Error scanning devices:', error);
@@ -85,11 +87,11 @@ class Gear360Service {
   // Connexion à la caméra
   async connectToDevice(deviceId: string): Promise<boolean> {
     console.log(`🔗 Connecting to device: ${deviceId}`);
-    
+
     try {
       const devices = await this.scanForDevices();
       const targetDevice = devices.find(d => d.id === deviceId);
-      
+
       if (!targetDevice) {
         throw new Error('Device not found');
       }
@@ -108,10 +110,10 @@ class Gear360Service {
 
       targetDevice.status = 'connected';
       this.device = targetDevice;
-      
+
       // Récupérer les infos de la caméra
       await this.getCameraInfo();
-      
+
       this.emit('deviceConnected', this.device);
       return true;
     } catch (error) {
@@ -151,7 +153,7 @@ class Gear360Service {
     }
 
     console.log('📸 Capturing photo...');
-    
+
     try {
       if (this.device.connectionType === 'wifi') {
         const response = await fetch(`http://${this.device.ipAddress}/api/capture/photo`, {
@@ -176,7 +178,7 @@ class Gear360Service {
     }
 
     console.log('🎥 Starting video recording...');
-    
+
     try {
       if (this.device.connectionType === 'wifi') {
         const response = await fetch(`http://${this.device.ipAddress}/api/recording/start`, {
@@ -197,7 +199,7 @@ class Gear360Service {
     }
 
     console.log('⏹️ Stopping video recording...');
-    
+
     try {
       if (this.device.connectionType === 'wifi') {
         const response = await fetch(`http://${this.device.ipAddress}/api/recording/stop`, {
@@ -220,14 +222,14 @@ class Gear360Service {
     }
 
     console.log('📡 Starting live stream...');
-    
+
     try {
       if (this.device.connectionType === 'wifi') {
         const response = await fetch(`http://${this.device.ipAddress}/api/stream/start`, {
           method: 'POST'
         });
         const result = await response.json();
-        
+
         this.streamInfo = {
           isStreaming: true,
           streamUrl: result.streamUrl,
@@ -238,11 +240,11 @@ class Gear360Service {
         this.streamInfo = {
           isStreaming: true,
           streamUrl: 'bluetooth_stream_url',
-          resolution: '1920x1080', 
+          resolution: '1920x1080',
           fps: 30
         };
       }
-      
+
       this.emit('streamStarted', this.streamInfo);
       return this.streamInfo;
     } catch (error) {
@@ -265,7 +267,7 @@ class Gear360Service {
     }
 
     console.log('⚙️ Updating camera settings:', settings);
-    
+
     try {
       if (this.device.connectionType === 'wifi') {
         const response = await fetch(`http://${this.device.ipAddress}/api/settings`, {
@@ -292,7 +294,7 @@ class Gear360Service {
       if (this.device.connectionType === 'wifi') {
         const response = await fetch(`http://${this.device.ipAddress}/api/info`);
         const info = await response.json();
-        
+
         this.device.batteryLevel = info.battery;
         this.device.firmware = info.firmware;
       }
@@ -308,14 +310,14 @@ class Gear360Service {
   }
 
   // Gestion des événements
-  on(event: string, callback: Function): void {
+  on(event: string, callback: Gear360Listener): void {
     if (!this.eventListeners.has(event)) {
       this.eventListeners.set(event, []);
     }
     this.eventListeners.get(event)!.push(callback);
   }
 
-  off(event: string, callback: Function): void {
+  off(event: string, callback: Gear360Listener): void {
     const listeners = this.eventListeners.get(event);
     if (listeners) {
       const index = listeners.indexOf(callback);
@@ -325,7 +327,7 @@ class Gear360Service {
     }
   }
 
-  private emit(event: string, data?: any): void {
+  private emit(event: string, data?: unknown): void {
     const listeners = this.eventListeners.get(event);
     if (listeners) {
       listeners.forEach(callback => callback(data));

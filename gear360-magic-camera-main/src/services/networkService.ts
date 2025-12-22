@@ -16,14 +16,16 @@ export interface NetworkStatus {
   signalStrength?: number;
 }
 
+type NetworkListener = (data?: unknown) => void;
+
 class NetworkService {
-  private eventListeners: Map<string, Function[]> = new Map();
+  private eventListeners: Map<string, NetworkListener[]> = new Map();
   private networkStatusListener: PluginListenerHandle | null = null;
 
   // Scanner les réseaux Wi-Fi disponibles
   async scanWifiNetworks(): Promise<WifiNetwork[]> {
     console.log('🔍 Scanning WiFi networks...');
-    
+
     if (!Capacitor.isNativePlatform()) {
       // Simulation pour le développement web
       return [
@@ -58,7 +60,7 @@ class NetworkService {
       // Ici on utiliserait un plugin Capacitor pour scanner le Wi-Fi
       // const networks = await CapacitorWifi.scan();
       const networks: WifiNetwork[] = [];
-      
+
       return networks.map(network => ({
         ...network,
         isGear360: this.isGear360Network(network.ssid)
@@ -77,14 +79,14 @@ class NetworkService {
       /^SM-R210/i,
       /^SM-R200/i
     ];
-    
+
     return gear360Patterns.some(pattern => pattern.test(ssid));
   }
 
   // Connexion à un réseau Wi-Fi
   async connectToWifi(ssid: string, password?: string): Promise<boolean> {
     console.log(`🔗 Connecting to WiFi: ${ssid}`);
-    
+
     if (!Capacitor.isNativePlatform()) {
       // Simulation pour le développement
       await new Promise(resolve => setTimeout(resolve, 2000));
@@ -104,7 +106,7 @@ class NetworkService {
   // Déconnexion du Wi-Fi
   async disconnectWifi(): Promise<boolean> {
     console.log('🔌 Disconnecting from WiFi');
-    
+
     if (!Capacitor.isNativePlatform()) {
       return true;
     }
@@ -144,7 +146,7 @@ class NetworkService {
   // Créer un hotspot Wi-Fi (si supporté)
   async createHotspot(ssid: string, password: string): Promise<boolean> {
     console.log(`📡 Creating hotspot: ${ssid}`);
-    
+
     if (!Capacitor.isNativePlatform()) {
       return false;
     }
@@ -174,7 +176,7 @@ class NetworkService {
   // Ping une adresse IP
   async pingHost(host: string, timeout: number = 5000): Promise<number> {
     const start = Date.now();
-    
+
     try {
       const response = await fetch(`http://${host}`, {
         method: 'HEAD',
@@ -212,7 +214,7 @@ class NetworkService {
 
     const devices: string[] = [];
     const baseIp = networkInfo.ip.split('.').slice(0, 3).join('.');
-    
+
     // Scanner les adresses IP de 1 à 254
     const promises = [];
     for (let i = 1; i <= 254; i++) {
@@ -221,7 +223,7 @@ class NetworkService {
     }
 
     const results = await Promise.all(promises);
-    
+
     results.forEach((ping, index) => {
       if (ping > -1) {
         devices.push(`${baseIp}.${index + 1}`);
@@ -239,15 +241,15 @@ class NetworkService {
         method: 'GET',
         signal: AbortSignal.timeout(3000)
       });
-      
+
       if (response.ok) {
-        const data = await response.json();
-        return data.device?.includes('Gear360') || data.model?.includes('SM-R');
+        const data = await response.json() as { device?: string; model?: string };
+        return data.device?.includes('Gear360') || data.model?.includes('SM-R') || false;
       }
     } catch {
       // Pas une Gear 360 ou pas accessible
     }
-    
+
     return false;
   }
 
@@ -271,14 +273,14 @@ class NetworkService {
   }
 
   // Gestion des événements
-  on(event: string, callback: Function): void {
+  on(event: string, callback: NetworkListener): void {
     if (!this.eventListeners.has(event)) {
       this.eventListeners.set(event, []);
     }
     this.eventListeners.get(event)!.push(callback);
   }
 
-  off(event: string, callback: Function): void {
+  off(event: string, callback: NetworkListener): void {
     const listeners = this.eventListeners.get(event);
     if (listeners) {
       const index = listeners.indexOf(callback);
@@ -288,7 +290,7 @@ class NetworkService {
     }
   }
 
-  private emit(event: string, data?: any): void {
+  private emit(event: string, data?: unknown): void {
     const listeners = this.eventListeners.get(event);
     if (listeners) {
       listeners.forEach(callback => callback(data));

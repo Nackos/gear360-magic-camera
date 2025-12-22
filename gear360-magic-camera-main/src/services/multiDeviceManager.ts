@@ -34,10 +34,12 @@ export interface DeviceCommand {
   broadcast?: boolean;
 }
 
+type DeviceListener = (data?: unknown) => void;
+
 class MultiDeviceManager {
   private devices: Map<string, ConnectedDevice> = new Map();
   private pairedDevices: Map<string, ConnectedDevice> = new Map();
-  private eventListeners: Map<string, Function[]> = new Map();
+  private eventListeners: Map<string, DeviceListener[]> = new Map();
   private maxWifiConnections = 1; // Wi-Fi Direct limite généralement à 1
   private maxBluetoothConnections = 7; // Bluetooth supporte jusqu'à 7 connexions
   private reconnectAttempts: Map<string, number> = new Map();
@@ -112,31 +114,31 @@ class MultiDeviceManager {
     try {
       // Simulation de connexion (remplacer par vraie implémentation)
       await this.performConnection(newDevice);
-      
+
       newDevice.status = 'connected';
       newDevice.connectedAt = new Date();
       this.reconnectAttempts.delete(deviceId);
-      
+
       this.emit('deviceConnected', newDevice);
       console.log(`✅ Connected to ${newDevice.name} via ${connectionType}`);
-      
+
       return newDevice;
     } catch (error) {
       console.error(`❌ Connection failed for ${newDevice.name}:`, error);
-      
+
       // Tentative de reconnexion
       const attempts = (this.reconnectAttempts.get(deviceId) || 0) + 1;
       this.reconnectAttempts.set(deviceId, attempts);
-      
+
       if (attempts < this.maxReconnectAttempts) {
         newDevice.status = 'connecting';
         this.emit('deviceReconnecting', { device: newDevice, attempt: attempts });
-        
+
         // Retry après délai
         setTimeout(() => this.connectDevice(device), 2000 * attempts);
         return null;
       }
-      
+
       newDevice.status = 'error';
       this.emit('connectionFailed', { device: newDevice, error });
       return null;
@@ -206,11 +208,11 @@ class MultiDeviceManager {
 
       this.pairedDevices.set(device.id, device);
       this.savePairedDevices();
-      
+
       device.status = device.status === 'pairing' ? 'disconnected' : device.status;
       this.emit('devicePaired', device);
       console.log(`🔐 Paired with ${device.name}`);
-      
+
       return true;
     } catch (error) {
       console.error(`❌ Pairing failed for ${device.name}:`, error);
@@ -228,7 +230,7 @@ class MultiDeviceManager {
     device.isPaired = false;
     this.pairedDevices.delete(deviceId);
     this.savePairedDevices();
-    
+
     // Déconnecter si connecté
     if (this.devices.has(deviceId)) {
       await this.disconnectDevice(deviceId);
@@ -240,11 +242,11 @@ class MultiDeviceManager {
   }
 
   // Envoyer une commande à un ou plusieurs appareils
-  async sendCommand(cmd: DeviceCommand): Promise<Map<string, any>> {
-    const results = new Map<string, any>();
-    const targetDevices = cmd.broadcast 
+  async sendCommand(cmd: DeviceCommand): Promise<Map<string, { success: boolean; data?: any; error?: any }>> {
+    const results = new Map<string, { success: boolean; data?: any; error?: any }>();
+    const targetDevices = cmd.broadcast
       ? this.getConnectedDevices()
-      : cmd.targetDeviceId 
+      : cmd.targetDeviceId
         ? [this.devices.get(cmd.targetDeviceId)].filter(Boolean) as ConnectedDevice[]
         : [];
 
@@ -267,7 +269,7 @@ class MultiDeviceManager {
     if (!Capacitor.isNativePlatform()) {
       // Simulation des réponses
       await new Promise(resolve => setTimeout(resolve, 300));
-      
+
       switch (command) {
         case 'capture_photo':
           return { success: true, photoId: `photo_${Date.now()}` };
@@ -336,14 +338,14 @@ class MultiDeviceManager {
   }
 
   // Gestion des événements
-  on(event: string, callback: Function): void {
+  on(event: string, callback: DeviceListener): void {
     if (!this.eventListeners.has(event)) {
       this.eventListeners.set(event, []);
     }
     this.eventListeners.get(event)!.push(callback);
   }
 
-  off(event: string, callback: Function): void {
+  off(event: string, callback: DeviceListener): void {
     const listeners = this.eventListeners.get(event);
     if (listeners) {
       const index = listeners.indexOf(callback);
@@ -353,7 +355,7 @@ class MultiDeviceManager {
     }
   }
 
-  private emit(event: string, data?: any): void {
+  private emit(event: string, data?: unknown): void {
     const listeners = this.eventListeners.get(event);
     if (listeners) {
       listeners.forEach(callback => {

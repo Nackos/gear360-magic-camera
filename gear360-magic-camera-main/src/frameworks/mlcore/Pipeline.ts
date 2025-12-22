@@ -71,7 +71,7 @@ export class MLPipeline {
     const stagesExecuted: string[] = [];
     
     let currentInput = input;
-    let outputs: Record<string, any> = {};
+    const outputs: Record<string, any> = {};
 
     for (const stage of this.stages) {
       // Check condition

@@ -22,7 +22,7 @@ export interface KinectJoint {
   trackingState: 'Tracked' | 'Inferred' | 'NotTracked';
 }
 
-export type JointType = 
+export type JointType =
   | 'Head' | 'Neck' | 'SpineShoulder' | 'SpineMid' | 'SpineBase'
   | 'ShoulderLeft' | 'ShoulderRight' | 'ElbowLeft' | 'ElbowRight'
   | 'WristLeft' | 'WristRight' | 'HandLeft' | 'HandRight'
@@ -50,10 +50,12 @@ export interface KinectConnectionStatus {
   lastError?: string;
 }
 
+type KinectListener = (data?: unknown) => void;
+
 class KinectService {
   private ws: WebSocket | null = null;
   private isConnected = false;
-  private listeners: Map<string, Function[]> = new Map();
+  private listeners: Map<string, KinectListener[]> = new Map();
   private depthCanvas: HTMLCanvasElement | null = null;
   private colorCanvas: HTMLCanvasElement | null = null;
   private reconnectAttempts = 0;
@@ -77,7 +79,7 @@ class KinectService {
   async connect(serverUrl: string = 'ws://localhost:8181', options?: { autoReconnect?: boolean }): Promise<void> {
     this.serverUrl = serverUrl;
     this.autoReconnect = options?.autoReconnect ?? true;
-    
+
     return new Promise((resolve, reject) => {
       const timeoutId = setTimeout(() => {
         if (this.ws) {
@@ -135,7 +137,7 @@ class KinectService {
           this.connectionStatus.connected = false;
           this.emit('disconnected', { code: event.code, reason: event.reason });
           this.emit('statusChange', this.connectionStatus);
-          
+
           // Attempt reconnection if enabled
           if (this.autoReconnect && this.reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
             this.scheduleReconnect();
@@ -152,12 +154,13 @@ class KinectService {
   /**
    * Handle connection errors with optimistic retry
    */
-  private handleConnectionError(error: any): void {
+  private handleConnectionError(error: unknown): void {
+    const err = error as { message?: string } | null;
     this.connectionStatus = {
       connected: false,
       reconnecting: this.autoReconnect && this.reconnectAttempts < MAX_RECONNECT_ATTEMPTS,
       attempts: this.reconnectAttempts,
-      lastError: error?.message || 'Connection failed'
+      lastError: err?.message || 'Connection failed'
     };
     this.emit('statusChange', this.connectionStatus);
   }
@@ -174,7 +177,7 @@ class KinectService {
     const delay = RECONNECT_DELAY * Math.min(this.reconnectAttempts, 3); // Exponential backoff cap
 
     console.log(`🔄 Scheduling Kinect reconnect attempt ${this.reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS} in ${delay}ms`);
-    
+
     this.connectionStatus.reconnecting = true;
     this.emit('reconnecting', { attempt: this.reconnectAttempts, maxAttempts: MAX_RECONNECT_ATTEMPTS });
 
@@ -204,13 +207,13 @@ class KinectService {
   disconnect(): void {
     this.autoReconnect = false;
     this.cancelReconnect();
-    
+
     if (this.ws) {
       this.ws.close();
       this.ws = null;
       this.isConnected = false;
     }
-    
+
     this.connectionStatus = {
       connected: false,
       reconnecting: false,
@@ -222,9 +225,9 @@ class KinectService {
   /**
    * Handle incoming messages from Kinect
    */
-  private handleMessage(data: any): void {
+  private handleMessage(data: string): void {
     try {
-      const message = JSON.parse(data);
+      const message = JSON.parse(data) as { type: string; data: any };
 
       switch (message.type) {
         case 'skeleton':
@@ -250,7 +253,7 @@ class KinectService {
   /**
    * Process depth frame data
    */
-  private processDepthFrame(data: any): void {
+  private processDepthFrame(data: { width?: number; height?: number; buffer: ArrayBuffer }): void {
     if (!this.depthCanvas) return;
 
     const depthFrame: DepthFrame = {
@@ -266,7 +269,7 @@ class KinectService {
   /**
    * Process color frame data
    */
-  private processColorFrame(data: any): void {
+  private processColorFrame(data: { width?: number; height?: number; buffer: ArrayBuffer }): void {
     if (!this.colorCanvas) return;
 
     const colorFrame: ColorFrame = {
@@ -311,9 +314,9 @@ class KinectService {
    * Enable gesture recognition
    */
   enableGestureRecognition(gestures: string[]): void {
-    this.sendCommand({ 
+    this.sendCommand({
       command: 'enableGestures',
-      gestures 
+      gestures
     });
   }
 
@@ -327,7 +330,7 @@ class KinectService {
   /**
    * Send command to Kinect
    */
-  private sendCommand(command: any): void {
+  private sendCommand(command: { command: string;[key: string]: any }): void {
     if (this.ws && this.isConnected) {
       this.ws.send(JSON.stringify(command));
     }
@@ -336,14 +339,14 @@ class KinectService {
   /**
    * Event listener management
    */
-  on(event: string, callback: Function): void {
+  on(event: string, callback: KinectListener): void {
     if (!this.listeners.has(event)) {
       this.listeners.set(event, []);
     }
     this.listeners.get(event)!.push(callback);
   }
 
-  off(event: string, callback: Function): void {
+  off(event: string, callback: KinectListener): void {
     const callbacks = this.listeners.get(event);
     if (callbacks) {
       const index = callbacks.indexOf(callback);
@@ -353,7 +356,7 @@ class KinectService {
     }
   }
 
-  private emit(event: string, data: any): void {
+  private emit(event: string, data?: unknown): void {
     const callbacks = this.listeners.get(event);
     if (callbacks) {
       callbacks.forEach(callback => callback(data));

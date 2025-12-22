@@ -48,7 +48,7 @@ const ERROR_MESSAGES: Record<string, SecureError> = {
 };
 
 // Secure error handler that doesn't expose technical details
-export const handleSecureError = (error: any, context: string): SecureError => {
+export const handleSecureError = (error: unknown, context: string): SecureError => {
   // Log technical details for debugging (in development only)
   if (process.env.NODE_ENV === 'development') {
     console.error(`[${context}] Technical error:`, error);
@@ -56,16 +56,17 @@ export const handleSecureError = (error: any, context: string): SecureError => {
 
   // Determine error type
   let errorCode = 'UNKNOWN_ERROR';
-  
-  if (error?.name === 'TimeoutError' || error?.message?.includes('timeout')) {
+  const err = error as { name?: string; message?: string } | null;
+
+  if (err?.name === 'TimeoutError' || err?.message?.includes('timeout')) {
     errorCode = 'CONNECTION_TIMEOUT';
-  } else if (error?.message?.includes('permission')) {
+  } else if (err?.message?.includes('permission')) {
     errorCode = 'PERMISSION_DENIED';
-  } else if (error?.message?.includes('not found')) {
+  } else if (err?.message?.includes('not found')) {
     errorCode = 'DEVICE_NOT_FOUND';
-  } else if (error?.message?.includes('password')) {
+  } else if (err?.message?.includes('password')) {
     errorCode = 'INVALID_PASSWORD';
-  } else if (error?.message?.includes('scan')) {
+  } else if (err?.message?.includes('scan')) {
     errorCode = 'NETWORK_SCAN_FAILED';
   }
 
@@ -98,14 +99,14 @@ export const retryWithBackoff = async <T>(
   maxRetries = 3,
   baseDelay = 1000
 ): Promise<T> => {
-  let lastError: any;
+  let lastError: unknown;
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
       return await fn();
     } catch (error) {
       lastError = error;
-      
+
       if (attempt === maxRetries) {
         throw error;
       }

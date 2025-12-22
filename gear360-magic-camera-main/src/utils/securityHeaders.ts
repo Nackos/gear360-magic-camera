@@ -33,7 +33,8 @@ export const logNetworkRequest = (
   url: string,
   method: string,
   status?: number,
-  error?: any
+  status?: number,
+  error?: unknown
 ): void => {
   if (process.env.NODE_ENV === 'development') {
     const timestamp = new Date().toISOString();
@@ -42,16 +43,16 @@ export const logNetworkRequest = (
       url: url.replace(/([?&]password=)[^&]*/, '$1***'), // Hide passwords in logs
       method,
       status,
-      error: error?.message
+      error: (error as { message?: string })?.message || String(error)
     };
-    
+
     console.log('🌐 Network Request:', logData);
   }
 };
 
 // Secure local storage wrapper
 export const secureStorage = {
-  set: (key: string, value: any): void => {
+  set: (key: string, value: unknown): void => {
     try {
       const encrypted = btoa(JSON.stringify(value)); // Basic encoding
       localStorage.setItem(`gear360_${key}`, encrypted);
@@ -60,7 +61,7 @@ export const secureStorage = {
     }
   },
 
-  get: (key: string): any => {
+  get: (key: string): unknown => {
     try {
       const encrypted = localStorage.getItem(`gear360_${key}`);
       if (!encrypted) return null;
