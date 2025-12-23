@@ -227,7 +227,7 @@ class KinectService {
    */
   private handleMessage(data: string): void {
     try {
-      const message = JSON.parse(data) as { type: string; data: any };
+      const message = JSON.parse(data) as { type: string; data: unknown };
 
       switch (message.type) {
         case 'skeleton':
@@ -330,7 +330,7 @@ class KinectService {
   /**
    * Send command to Kinect
    */
-  private sendCommand(command: { command: string;[key: string]: any }): void {
+  private sendCommand(command: { command: string;[key: string]: unknown }): void {
     if (this.ws && this.isConnected) {
       this.ws.send(JSON.stringify(command));
     }

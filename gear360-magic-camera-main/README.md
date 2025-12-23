@@ -5,7 +5,29 @@
 [![Made with React](https://img.shields.io/badge/React-18.3-61DAFB?logo=react)](https://reactjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.8-3178C6?logo=typescript)](https://www.typescriptlang.org/)
 [![Vite](https://img.shields.io/badge/Vite-5.4-646CFF?logo=vite)](https://vitejs.dev/)
+[![Capacitor](https://img.shields.io/badge/Capacitor-7.0-119EFF?logo=capacitor)](https://capacitorjs.com/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+
+## 🎥 Démonstration
+
+````carousel
+![Interface principale - Détection d'objets](file:///C:/Users/Administrator/.gemini/antigravity/brain/6543d079-f19f-40b0-92c7-a0a891f9b932/app_mockup_main_1766483638561.png)
+<!-- slide -->
+![Studio 3D IA - Génération de scènes](file:///C:/Users/Administrator/.gemini/antigravity/brain/6543d079-f19f-40b0-92c7-a0a891f9b932/ai_studio_mockup_1766483665209.png)
+````
+
+## ⚠️ État d’implémentation
+
+| Fonctionnalité | État | Détails |
+|:---|:---:|:---|
+| Capture photo/vidéo standard | ✅ | Optimisée avec `useCallback` |
+| Détection objets (COCO-SSD) | ✅ | Temps réel, 80+ classes |
+| Analyse corporelle (MediaPipe) | ✅ | Squelette 3D complet |
+| Contrôle vocal (Français) | ✅ | Commandes système intégrées |
+| Samsung Gear 360 | 🟡 | Support partiel (connexion/capture) |
+| Microsoft Kinect | 🟡 | Prototype (profondeur/squelette) |
+| IA générative 3D | 🔵 | Recherche & Développement |
+| Conversion 2D → 3D | 🔵 | Concept en cours d'exploration |
 
 ## ✨ Fonctionnalités Principales
 
@@ -24,11 +46,30 @@
 - **Détection de masques** - Reconnaissance automatique
 - **IA générative 3D** - Création d'environnements immersifs
 
-### 🎙️ Contrôle Avancé
-- **Commandes vocales** - Contrôle complet en français
-- **Reconnaissance gestuelle** - Capture mains libres
-- **Détection de posture** - Adaptation automatique
-- **Capture adaptative** - Mode intelligent selon le contexte
+### 🎙️ Contrôle Intelligent (Mains-libres)
+- **Commandes vocales** - Pilotage intégral en français (Capture, Mode, Zoom)
+- **Reconnaissance gestuelle** - Déclenchement par signes (✌️, 👍, 👋)
+- **Détection de posture** - Ajustement automatique du cadrage
+- **Capture adaptative** - Déclenchement automatique selon l'émotion ou le sujet
+
+## 🧠 Architecture IA
+
+Le pipeline d'intelligence artificielle de l'application fonctionne de manière hybride et locale :
+
+```mermaid
+graph TD
+    A[Flux Vidéo Caméra] --> B[Prétraitement d'image]
+    B --> C{Orchestrateur IA}
+    C --> D[Vision: YOLO/COCO-SSD]
+    C --> E[Pose: MediaPipe Holistic]
+    C --> F[NLP: Transformers.js Vocaux]
+    D & E & F --> G[Moteur de Décision]
+    G --> H[Rendu UI / Filtres Temps Réel]
+    G --> I[Actionneur Capture / Enregistrement]
+```
+
+- **Inférence Locale** : Tous les modèles tournent directement sur l'appareil (via WebGL/WebAssembly), garantissant une latence minimale.
+- **Modulaires** : Les modèles peuvent être activés/désactivés dynamiquement pour préserver la batterie.
 
 ### 🎨 Effets et Filtres
 - **Filtres IA** - Transformation en temps réel
@@ -122,9 +163,32 @@ npx cap open ios
 - 🤖 **Android Support** - Déploiement Play Store
 
 ### Services
-- ☁️ **Supabase** - Backend as a Service
-- 🔄 **TanStack Query** - Gestion état async
-- 🚦 **React Router** - Navigation
+- ☁️ **Supabase** - Backend persistante & Auth
+- 🔄 **TanStack Query** - Synchronisation état async
+- 🚦 **React Router** - Navigation SPA fluide
+
+## 📱 Compatibilité & Performance
+
+### Prérequis Matériels
+- **Minimum** : Appareil avec processeur milieu de gamme (ex: Snapdragon 7 series).
+- **Recommandé** : Snapdragon 8 Gen 1+ ou Apple A15 Bionic+ pour une inférence IA fluide (> 30 FPS).
+- **Stockage** : 100 Mo (plus cache pour les modèles IA).
+
+### Support OS
+- **Android** : Testé sur Android 11, 12, 13, 14.
+- **iOS** : Support expérimental via Capacitor (limitations liées à WebKit pour l'accès caméra avancé).
+
+### Permissions Requises
+- `CAMERA` : Pour la capture et l'analyse IA.
+- `MICROPHONE` : Pour les commandes vocales.
+- `GALLERY` : Pour la sauvegarde des médias.
+
+## 🔐 Confidentialité & Éthique
+
+Nous plaçons la vie privée au centre du développement :
+- 🛡️ **Traitement 100% Local** : Vos photos, visages et voix sont analysés sur votre appareil. Rien n'est envoyé sur nos serveurs sans votre action explicite de partage.
+- 🚫 **Données Biométriques** : Aucun profil biométrique persistant n'est créé ou stocké.
+- 🇪🇺 **Conformité RGPD** : L'application ne collecte aucune donnée personnelle par défaut.
 
 ## 📂 Structure du Projet
 
@@ -208,22 +272,24 @@ Les contributions sont les bienvenues !
 
 ### Changelog
 
-### Version [2025.12.22] - Maintenance
-- 🔄 Mise à jour des dépendances NPM (minor/patch)
-- 🌐 Mise à jour de la base de données Browserslist
-- 🛠️ Correction de nombreux problèmes de lint (typographie, importations, sécurité)
-- 🏗️ Amélioration de la robustesse et de la sécurité des types (TS)
-- ✅ Vérification de la stabilité du build
+### v0.0.2 - 2025.12.23 - Mise à jour Produit & Documentation
+- ✨ **Product Vision** : Refonte complète du README pour une présentation professionnelle.
+- 📊 **Status Map** : Ajout du tableau d'état d'implémentation des fonctionnalités.
+- 🧠 **AI Architecture** : Documentation du pipeline de vision et de traitement vocal.
+- 📱 **Specs** : Ajout des recommandations matérielles et de compatibilité OS.
+- 🔐 **Privacy** : Section dédiée à la confidentialité et au traitement local des données.
 
-### Version Initial Actuelle
+### v0.0.1 - 2025.12.23 - Maintenance & Types
+- 🔄 **Maintenance** : Mise à jour des dépendances NPM et Browserslist.
+- 🛠️ **Refactor** : Correction massive des erreurs de lint et amélioration de la sécurité des types (Camera, Gallery, Services).
+- 🏗️ **Fix** : Correction des fuites mémoire potentielles dans les flux caméra.
+
+### v0.0.0 - 2025.12.22 - Release Initial
 - ✨ Application caméra 360° complète
 - 🤖 Intégration IA avancée (YOLO, MediaPipe, TensorFlow)
 - 🎙️ Contrôle vocal en français
 - 🤲 Reconnaissance gestuelle
-- 🎨 Filtres et effets IA
-- 📱 Support mobile (Capacitor)
 - 🌐 Multi-appareils (Gear 360, Kinect)
-- 🎬 Studio 3D IA intégré
 
 ## 📄 License
 

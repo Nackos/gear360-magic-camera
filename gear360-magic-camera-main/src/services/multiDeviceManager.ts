@@ -16,7 +16,7 @@ export interface ConnectedDevice {
   connectedAt?: Date;
   lastSeen: Date;
   services: string[];
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface ConnectionStats {
@@ -29,7 +29,7 @@ export interface ConnectionStats {
 
 export interface DeviceCommand {
   command: string;
-  data?: any;
+  data?: unknown;
   targetDeviceId?: string;
   broadcast?: boolean;
 }
@@ -242,8 +242,8 @@ class MultiDeviceManager {
   }
 
   // Envoyer une commande à un ou plusieurs appareils
-  async sendCommand(cmd: DeviceCommand): Promise<Map<string, { success: boolean; data?: any; error?: any }>> {
-    const results = new Map<string, { success: boolean; data?: any; error?: any }>();
+  async sendCommand(cmd: DeviceCommand): Promise<Map<string, { success: boolean; data?: unknown; error?: unknown }>> {
+    const results = new Map<string, { success: boolean; data?: unknown; error?: unknown }>();
     const targetDevices = cmd.broadcast
       ? this.getConnectedDevices()
       : cmd.targetDeviceId
@@ -263,7 +263,7 @@ class MultiDeviceManager {
   }
 
   // Exécuter une commande sur un appareil
-  private async executeCommand(device: ConnectedDevice, command: string, data?: any): Promise<any> {
+  private async executeCommand(device: ConnectedDevice, command: string, data?: unknown): Promise<unknown> {
     console.log(`📤 Sending "${command}" to ${device.name}`, data);
 
     if (!Capacitor.isNativePlatform()) {

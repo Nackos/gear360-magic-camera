@@ -12,18 +12,32 @@ import { useToast } from "@/hooks/use-toast";
 import { BottomRightMenu } from "@/components/BottomRightMenu";
 import sample360 from "@/assets/360-sample.jpg";
 
+interface MediaItem {
+  id: number;
+  type: 'photo' | 'video';
+  thumbnail: string;
+  dataUrl: string;
+  mode: string;
+  title: string;
+  date: string;
+  size: string;
+  sizeBytes: number;
+  createdAt: Date;
+  duration?: string;
+}
+
 const Gallery = () => {
   const { toast } = useToast();
-  const [mediaItems, setMediaItems] = useState<any[]>([]);
+  const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
 
   useEffect(() => {
     // Charger les médias depuis localStorage
     const loadGalleryItems = () => {
       const savedItems = JSON.parse(localStorage.getItem('galleryItems') || '[]');
-      setMediaItems(savedItems.map((item: any) => ({
+      setMediaItems(savedItems.map((item: MediaItem) => ({
         ...item,
         createdAt: new Date(item.createdAt),
-      })));
+      })) as MediaItem[]);
     };
 
     loadGalleryItems();
@@ -34,7 +48,7 @@ const Gallery = () => {
     };
 
     window.addEventListener('storage', handleStorageChange);
-    
+
     // Rafraîchir toutes les 2 secondes pour détecter les nouvelles captures
     const interval = setInterval(loadGalleryItems, 2000);
 
@@ -45,14 +59,14 @@ const Gallery = () => {
   }, []);
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [itemToDelete, setItemToDelete] = useState<any>(null);
+  const [itemToDelete, setItemToDelete] = useState<MediaItem | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [sortBy, setSortBy] = useState("date");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [filterType, setFilterType] = useState("all");
-  const [selectedImage, setSelectedImage] = useState<any>(null);
+  const [selectedImage, setSelectedImage] = useState<MediaItem | null>(null);
 
-  const handleDeleteClick = (item: any) => {
+  const handleDeleteClick = (item: MediaItem) => {
     setItemToDelete(item);
     setDeleteDialogOpen(true);
   };
@@ -85,7 +99,7 @@ const Gallery = () => {
     })
     .sort((a, b) => {
       let compareValue = 0;
-      
+
       switch (sortBy) {
         case "name":
           compareValue = a.title.localeCompare(b.title);
@@ -98,7 +112,7 @@ const Gallery = () => {
           compareValue = a.createdAt.getTime() - b.createdAt.getTime();
           break;
       }
-      
+
       return sortOrder === "asc" ? compareValue : -compareValue;
     });
 
@@ -131,7 +145,7 @@ const Gallery = () => {
             <Filter className="w-4 h-4" />
             Organisateur de fichiers
           </div>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
             {/* Recherche */}
             <div className="relative">
@@ -188,7 +202,7 @@ const Gallery = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {filteredAndSortedItems.map((item) => (
             <Card key={item.id} className="overflow-hidden group hover:shadow-lg transition-shadow">
-              <div 
+              <div
                 className="relative aspect-video cursor-pointer"
                 onClick={() => setSelectedImage(item)}
               >
@@ -197,7 +211,7 @@ const Gallery = () => {
                   alt={item.title}
                   className="w-full h-full object-cover"
                 />
-                
+
                 {/* Type Indicator */}
                 <div className="absolute top-2 left-2">
                   {item.type === "video" ? (
@@ -230,9 +244,9 @@ const Gallery = () => {
                         </Button>
                       </a>
                     )}
-                    <Button 
-                      size="icon" 
-                      variant="secondary" 
+                    <Button
+                      size="icon"
+                      variant="secondary"
                       className="rounded-full"
                       onClick={() => {
                         if (navigator.share && item.dataUrl) {
@@ -247,9 +261,9 @@ const Gallery = () => {
                     >
                       <Share2 className="w-4 h-4" />
                     </Button>
-                    <Button 
-                      size="icon" 
-                      variant="destructive" 
+                    <Button
+                      size="icon"
+                      variant="destructive"
                       className="rounded-full"
                       onClick={() => handleDeleteClick(item)}
                     >
