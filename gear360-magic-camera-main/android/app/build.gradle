@@ -1,10 +1,10 @@
 apply plugin: 'com.android.application'
 
 android {
-    namespace "app.lovable.id4bc2049b140e4215849c3414348558df"
+    namespace "com.gear360.magiccamera"
     compileSdk rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "app.lovable.id4bc2049b140e4215849c3414348558df"
+        applicationId "com.gear360.magiccamera"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1

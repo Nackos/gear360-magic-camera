@@ -1,11 +1,10 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'app.lovable.id4bc2049b140e4215849c3414348558df',
-  appName: 'Samsung Gear 360 Control',
+  appId: 'com.gear360.magiccamera',
+  appName: 'Gear 360 Magic Camera',
   webDir: 'dist',
   server: {
-    url: 'https://4bc2049b-140e-4215-849c-3414348558df.lovableproject.com?forceHideBadge=true',
     cleartext: true
   },
   android: {

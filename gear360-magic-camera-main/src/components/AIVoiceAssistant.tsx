@@ -1,7 +1,44 @@
-import { useEffect, useState, useRef } from 'react';
-import { Card } from '@/components/ui/card';
+import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
-import { Mic, Volume2, VolumeX, Music, Pause, SkipForward, Brain } from 'lucide-react';
+import { Mic } from 'lucide-react';
+
+// Local types for Speech Recognition
+interface SpeechRecognitionEvent extends Event {
+  results: {
+    length: number;
+    [index: number]: {
+      length: number;
+      [index: number]: {
+        transcript: string;
+      };
+    };
+  };
+}
+
+interface SpeechRecognitionErrorEvent extends Event {
+  error: string;
+}
+
+// Define CustomSpeechRecognition as a global interface to extend the window object's SpeechRecognition
+// This is necessary because the original CustomSpeechRecognition interface was removed,
+// but the type is still used in the code.
+declare global {
+  interface Window {
+    SpeechRecognition: new () => CustomSpeechRecognition;
+    webkitSpeechRecognition: new () => CustomSpeechRecognition;
+  }
+}
+
+interface CustomSpeechRecognition extends EventTarget {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  onresult: (event: SpeechRecognitionEvent) => void;
+  onerror: (event: SpeechRecognitionErrorEvent) => void;
+  onend: () => void;
+  start: () => void;
+  stop: () => void;
+}
 
 interface VoiceCommand {
   command: string;
@@ -21,33 +58,116 @@ interface AIVoiceAssistantProps {
   };
 }
 
-export const AIVoiceAssistant = ({ 
-  onCapture, 
-  onModeChange, 
-  onFilterApply, 
+export const AIVoiceAssistant = ({
+  onCapture,
+  onModeChange,
+  onFilterApply,
   onFaceDetectionToggle,
-  settings 
+  settings
 }: AIVoiceAssistantProps) => {
   const [isListening, setIsListening] = useState(false);
+  const isListeningRef = useRef(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [lastCommand, setLastCommand] = useState<string>('');
   const [aiResponse, setAiResponse] = useState<string>('');
+  const detectionsRef = useRef(null); // Assuming 'detections' would be passed as a prop or derived
   const [permissionGranted, setPermissionGranted] = useState(false);
   const [isMusicPlaying, setIsMusicPlaying] = useState(false);
   const [currentTrack, setCurrentTrack] = useState('Ambient Background 1');
-  const recognitionRef = useRef<any>(null);
+  const recognitionRef = useRef<CustomSpeechRecognition | null>(null);
 
-  const voiceCommands: VoiceCommand[] = [
+  const speak = useCallback((text: string) => {
+    if ('speechSynthesis' in window) {
+      setIsSpeaking(true);
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = 'fr-FR';
+      utterance.onend = () => setIsSpeaking(false);
+      window.speechSynthesis.speak(utterance);
+    }
+  }, []);
+
+  const toggleMusic = useCallback(() => {
+    setIsMusicPlaying(prev => {
+      const newState = !prev;
+      speak(newState ? 'Musique en lecture' : 'Musique en pause');
+      return newState;
+    });
+  }, [speak]);
+
+  const nextTrack = useCallback(() => {
+    const tracks = ['Ambient Background 1', 'Cinematic Score 2', 'Nature Sounds 3'];
+    setCurrentTrack(prev => {
+      const currentIndex = tracks.indexOf(prev);
+      const nextIndex = (currentIndex + 1) % tracks.length;
+      speak(`Lecture de ${tracks[nextIndex]} `);
+      return tracks[nextIndex];
+    });
+  }, [speak]);
+
+  const voiceCommands: VoiceCommand[] = useMemo(() => [
     { command: 'prendre photo', action: onCapture, description: 'Prendre une photo' },
     { command: 'mode photo', action: () => onModeChange('photo'), description: 'Passer en mode photo' },
     { command: 'mode vidéo', action: () => onModeChange('video'), description: 'Passer en mode vidéo' },
     { command: 'détection visage', action: onFaceDetectionToggle, description: 'Activer/désactiver détection' },
     { command: 'filtre portrait', action: () => onFilterApply('portrait'), description: 'Appliquer filtre portrait' },
     { command: 'filtre paysage', action: () => onFilterApply('landscape'), description: 'Appliquer filtre paysage' },
-    { command: 'jouer musique', action: () => toggleMusic(), description: 'Jouer/Pause musique' },
-    { command: 'pause musique', action: () => toggleMusic(), description: 'Pause musique' },
-    { command: 'musique suivante', action: () => nextTrack(), description: 'Piste suivante' },
-  ];
+    { command: 'jouer musique', action: toggleMusic, description: 'Jouer/Pause musique' },
+    { command: 'pause musique', action: toggleMusic, description: 'Pause musique' },
+    { command: 'musique suivante', action: nextTrack, description: 'Piste suivante' },
+  ], [onCapture, onModeChange, onFaceDetectionToggle, onFilterApply, toggleMusic, nextTrack]);
+
+  const processCommand = useCallback((transcript: string) => {
+    const matchedCommand = voiceCommands.find(cmd =>
+      transcript.includes(cmd.command)
+    );
+
+    if (matchedCommand) {
+      matchedCommand.action();
+      const response = `Commande exécutée: ${matchedCommand.description} `;
+      setAiResponse(response);
+      speak(response);
+    } else {
+      const response = "Commande non reconnue. Dites 'aide' pour voir les commandes disponibles.";
+      setAiResponse(response);
+      speak(response);
+    }
+  }, [voiceCommands, speak]);
+
+  const initializeSpeechRecognition = useCallback(() => {
+    // Initialiser la reconnaissance vocale
+    const windowWithSpeech = window as unknown as { webkitSpeechRecognition: new () => CustomSpeechRecognition; SpeechRecognition: new () => CustomSpeechRecognition };
+    const SpeechRecognition = windowWithSpeech.webkitSpeechRecognition || windowWithSpeech.SpeechRecognition;
+
+    if (!SpeechRecognition) {
+      console.warn('Speech Recognition not supported in this browser.');
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = false;
+    recognition.lang = 'fr-FR';
+
+    recognition.onresult = (event: SpeechRecognitionEvent) => {
+      const transcript = event.results[event.results.length - 1][0].transcript.toLowerCase();
+      setLastCommand(transcript);
+      processCommand(transcript);
+    };
+
+    recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
+      console.error('Speech recognition error:', event.error);
+      setIsListening(false);
+      isListeningRef.current = false;
+    };
+
+    recognition.onend = () => {
+      if (isListeningRef.current) {
+        recognition.start();
+      }
+    };
+
+    recognitionRef.current = recognition;
+  }, [processCommand]);
 
   useEffect(() => {
     if (!settings.voiceControl || !settings.microphone) return;
@@ -61,102 +181,22 @@ export const AIVoiceAssistant = ({
         console.error('Erreur accès microphone:', err);
         setPermissionGranted(false);
       });
-  }, [settings.voiceControl, settings.microphone]);
-
-  const initializeSpeechRecognition = () => {
-    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-      console.error('Speech recognition not supported');
-      return;
-    }
-
-    const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
-    const recognition = new SpeechRecognition();
-    
-    recognition.continuous = true;
-    recognition.interimResults = false;
-    recognition.lang = 'fr-FR';
-
-    recognition.onresult = (event: any) => {
-      const transcript = event.results[event.results.length - 1][0].transcript.toLowerCase();
-      setLastCommand(transcript);
-      processCommand(transcript);
-    };
-
-    recognition.onerror = (event: any) => {
-      console.error('Speech recognition error:', event.error);
-      setIsListening(false);
-    };
-
-    recognition.onend = () => {
-      if (isListening) {
-        recognition.start();
-      }
-    };
-
-    recognitionRef.current = recognition;
-  };
-
-  const processCommand = (transcript: string) => {
-    const matchedCommand = voiceCommands.find(cmd => 
-      transcript.includes(cmd.command)
-    );
-
-    if (matchedCommand) {
-      matchedCommand.action();
-      const response = `Commande exécutée: ${matchedCommand.description}`;
-      setAiResponse(response);
-      speak(response);
-    } else {
-      const response = "Commande non reconnue. Dites 'aide' pour voir les commandes disponibles.";
-      setAiResponse(response);
-      speak(response);
-    }
-  };
-
-  const speak = (text: string) => {
-    if ('speechSynthesis' in window) {
-      setIsSpeaking(true);
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = 'fr-FR';
-      utterance.onend = () => setIsSpeaking(false);
-      window.speechSynthesis.speak(utterance);
-    }
-  };
+  }, [settings.voiceControl, settings.microphone, initializeSpeechRecognition]);
 
   const toggleListening = () => {
     if (!recognitionRef.current) return;
 
+    const recognition = recognitionRef.current;
+
     if (isListening) {
-      recognitionRef.current.stop();
+      recognition.stop();
       setIsListening(false);
+      isListeningRef.current = false;
     } else {
-      recognitionRef.current.start();
+      recognition.start();
       setIsListening(true);
+      isListeningRef.current = true;
     }
-  };
-
-  const toggleSpeech = () => {
-    if (isSpeaking) {
-      window.speechSynthesis.cancel();
-      setIsSpeaking(false);
-    }
-  };
-
-  const toggleMusic = () => {
-    setIsMusicPlaying(!isMusicPlaying);
-    if (!isMusicPlaying) {
-      speak('Musique en lecture');
-    } else {
-      speak('Musique en pause');
-    }
-  };
-
-  const nextTrack = () => {
-    const tracks = ['Ambient Background 1', 'Cinematic Score 2', 'Nature Sounds 3'];
-    const currentIndex = tracks.indexOf(currentTrack);
-    const nextIndex = (currentIndex + 1) % tracks.length;
-    setCurrentTrack(tracks[nextIndex]);
-    speak(`Lecture de ${tracks[nextIndex]}`);
   };
 
   if (!settings.voiceControl) return null;
@@ -170,10 +210,9 @@ export const AIVoiceAssistant = ({
         className="h-10 w-10 rounded-full bg-background/20 backdrop-blur-sm hover:bg-background/30 border-0 shadow-lg"
         disabled={!permissionGranted}
       >
-        <Mic className={`w-5 h-5 ${isListening ? 'animate-pulse' : ''}`} />
+        <Mic className={`w - 5 h - 5 ${isListening ? 'animate-pulse' : ''} `} />
       </Button>
-      
-      {/* Notification discrète quand l'assistant parle */}
+
       {isSpeaking && (
         <div className="absolute -bottom-2 -right-2 w-4 h-4 bg-primary rounded-full animate-pulse" />
       )}

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -19,7 +19,7 @@ interface AIIntelligentManagerProps {
   currentFilter: string | null;
   onModeChange: (mode: string) => void;
   onFilterApply: (filter: string) => void;
-  onSettingsChange: (setting: string, value: any) => void;
+  onSettingsChange: (setting: string, value: unknown) => void;
   isActive: boolean;
 }
 
@@ -46,9 +46,9 @@ export const AIIntelligentManager = ({
 
     const analyzeEnvironment = () => {
       const hour = new Date().getHours();
-      const timeOfDay = hour >= 6 && hour < 12 ? 'matin' : 
-                        hour >= 12 && hour < 18 ? 'après-midi' : 
-                        hour >= 18 && hour < 21 ? 'soirée' : 'nuit';
+      const timeOfDay = hour >= 6 && hour < 12 ? 'matin' :
+        hour >= 12 && hour < 18 ? 'après-midi' :
+          hour >= 18 && hour < 21 ? 'soirée' : 'nuit';
 
       setAnalysisData(prev => ({
         ...prev,
@@ -63,9 +63,9 @@ export const AIIntelligentManager = ({
     const interval = setInterval(analyzeEnvironment, 10000);
 
     return () => clearInterval(interval);
-  }, [isActive, facesDetected, currentMode, currentFilter]);
+  }, [isActive, facesDetected, generateOptimizations]);
 
-  const generateOptimizations = (timeOfDay: string, faces: number) => {
+  const generateOptimizations = useCallback((timeOfDay: string, faces: number) => {
     const newOptimizations: AIOptimization[] = [];
 
     // Optimisation basée sur l'heure
@@ -121,7 +121,7 @@ export const AIIntelligentManager = ({
         toast.success(`Auto-optimisation: ${highPriority.suggestion}`);
       }
     }
-  };
+  }, [currentMode, currentFilter, onSettingsChange, onFilterApply, autoMode]);
 
   const applyOptimization = (optimization: AIOptimization) => {
     optimization.action();
@@ -182,7 +182,7 @@ export const AIIntelligentManager = ({
           <div className="text-xs text-muted-foreground">
             Optimisations ({optimizations.length})
           </div>
-          
+
           {optimizations.length === 0 ? (
             <div className="text-xs text-white bg-green-500/10 rounded p-2 text-center">
               ✓ Configuration optimale

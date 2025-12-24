@@ -20,7 +20,7 @@ interface FaceDetectionProps {
 export const FaceDetection = ({ videoRef, isActive }: FaceDetectionProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [faces, setFaces] = useState<Face[]>([]);
-  const [detector, setDetector] = useState<any>(null);
+  const [detector, setDetector] = useState<unknown>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
@@ -51,14 +51,15 @@ export const FaceDetection = ({ videoRef, isActive }: FaceDetectionProps) => {
     const detectFaces = async () => {
       const video = videoRef.current;
       const canvas = canvasRef.current;
-      
+
       if (!video || !canvas || video.videoWidth === 0) return;
 
       try {
-        const results = await detector(video);
+        const detectorFn = detector as (input: HTMLVideoElement) => Promise<Array<{ label: string; score: number; box: { xmin: number; ymin: number; xmax: number; ymax: number } }>>;
+        const results = await detectorFn(video);
         const detectedFaces = results
-          .filter((result: any) => result.label === 'person' && result.score > 0.5)
-          .map((result: any) => ({
+          .filter((result) => result.label === 'person' && result.score > 0.5)
+          .map((result) => ({
             x: result.box.xmin,
             y: result.box.ymin,
             width: result.box.xmax - result.box.xmin,
@@ -85,7 +86,7 @@ export const FaceDetection = ({ videoRef, isActive }: FaceDetectionProps) => {
         className="absolute inset-0 w-full h-full"
         style={{ display: 'none' }}
       />
-      
+
       {/* Face detection overlay */}
       {faces.map((face, index) => (
         <div
@@ -98,7 +99,7 @@ export const FaceDetection = ({ videoRef, isActive }: FaceDetectionProps) => {
             height: `${face.height}px`,
           }}
         >
-          <Badge 
+          <Badge
             className="absolute -top-6 left-0 bg-samsung-blue text-white text-xs"
             variant="secondary"
           >

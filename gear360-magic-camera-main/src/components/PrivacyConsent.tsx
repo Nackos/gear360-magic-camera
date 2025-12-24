@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { usePrivacySettings, type PrivacySettings } from '@/hooks/usePrivacySettings';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -6,13 +7,6 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Shield, Eye, Mic, MapPin, Camera, Settings } from 'lucide-react';
 
-export interface PrivacySettings {
-  location: boolean;
-  camera: boolean;
-  microphone: boolean;
-  analytics: boolean;
-  storage: boolean;
-}
 
 interface PrivacyConsentProps {
   onConsentChange: (settings: PrivacySettings) => void;
@@ -96,7 +90,7 @@ export const PrivacyConsent = ({ onConsentChange }: PrivacyConsentProps) => {
 
     localStorage.setItem('privacy-consent', JSON.stringify(finalSettings));
     localStorage.setItem('privacy-consent-date', new Date().toISOString());
-    
+
     setSettings(finalSettings);
     onConsentChange(finalSettings);
     setIsOpen(false);
@@ -114,7 +108,7 @@ export const PrivacyConsent = ({ onConsentChange }: PrivacyConsentProps) => {
           <Shield className="w-5 h-5 text-primary" />
           <h3 className="font-semibold">Paramètres de confidentialité</h3>
         </div>
-        
+
         <div className="space-y-3">
           {privacyOptions.map((option) => (
             <div key={option.key} className="flex items-center justify-between">
@@ -136,7 +130,7 @@ export const PrivacyConsent = ({ onConsentChange }: PrivacyConsentProps) => {
             </div>
           ))}
         </div>
-        
+
         <Button onClick={handleAccept} className="w-full" size="sm">
           Sauvegarder les préférences
         </Button>
@@ -146,7 +140,7 @@ export const PrivacyConsent = ({ onConsentChange }: PrivacyConsentProps) => {
 
   return (
     <>
-      <Dialog open={isOpen} onOpenChange={() => {}}>
+      <Dialog open={isOpen} onOpenChange={() => { }}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -204,34 +198,4 @@ export const PrivacyConsent = ({ onConsentChange }: PrivacyConsentProps) => {
       )}
     </>
   );
-};
-
-// Hook for accessing privacy settings
-export const usePrivacySettings = () => {
-  const [settings, setSettings] = useState<PrivacySettings>({
-    location: false,
-    camera: false,
-    microphone: false,
-    analytics: false,
-    storage: false
-  });
-
-  useEffect(() => {
-    const savedConsent = localStorage.getItem('privacy-consent');
-    if (savedConsent) {
-      try {
-        setSettings(JSON.parse(savedConsent));
-      } catch {
-        // Invalid stored settings, reset to defaults
-      }
-    }
-  }, []);
-
-  const updateSettings = (newSettings: Partial<PrivacySettings>) => {
-    const updated = { ...settings, ...newSettings };
-    setSettings(updated);
-    localStorage.setItem('privacy-consent', JSON.stringify(updated));
-  };
-
-  return { settings, updateSettings };
 };

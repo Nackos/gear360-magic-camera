@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Wifi, Bluetooth, Camera, Video, Square, Battery, Settings as SettingsIcon, Trash2, RefreshCw, TestTube } from "lucide-react";
 import { bluetoothService, BluetoothDevice } from "@/services/bluetoothService";
@@ -24,7 +24,7 @@ import {
 interface Notification {
   id: string;
   date: Date;
-  data: any;
+  data: unknown;
 }
 
 const Gear360Control: React.FC = () => {
@@ -58,7 +58,7 @@ const Gear360Control: React.FC = () => {
       toast.info("Déconnecté");
     };
 
-    const onNotification = (data: any) => {
+    const onNotification = (data: unknown) => {
       const newNotification: Notification = {
         id: Date.now().toString(),
         date: new Date(),
@@ -82,20 +82,22 @@ const Gear360Control: React.FC = () => {
       bluetoothService.off("notification", onNotification);
       bluetoothService.stopScan();
     };
-  }, []);
+  }, [connectedDevice?.id, loadPairedDevices]);
 
-  const loadPairedDevices = async () => {
+  const loadPairedDevices = useCallback(async () => {
     try {
       const paired = await bluetoothService.getPairedDevices();
       if (paired && paired.length) {
-        const ids = new Set(bluetoothDevices.map((x) => x.id));
-        const newDevices = paired.filter((p) => !ids.has(p.id));
-        setBluetoothDevices((prev) => [...prev, ...newDevices]);
+        setBluetoothDevices((prev) => {
+          const ids = new Set(prev.map((x) => x.id));
+          const newDevices = paired.filter((p) => !ids.has(p.id));
+          return [...prev, ...newDevices];
+        });
       }
     } catch (error) {
       console.error("Error loading paired devices:", error);
     }
-  };
+  }, []);
 
   const startBluetoothScan = async () => {
     const available = await bluetoothService.isBluetoothAvailable();
@@ -247,220 +249,220 @@ const Gear360Control: React.FC = () => {
               </Button>
             </div>
 
-        {/* Actions */}
-        <div className="flex gap-2">
-          <Button
-            onClick={activeTab === "bluetooth" ? startBluetoothScan : scanWifiNetworks}
-            disabled={isScanning}
-            className="flex-1"
-          >
-            <RefreshCw className={`mr-2 h-4 w-4 ${isScanning ? "animate-spin" : ""}`} />
-            {isScanning ? "Recherche..." : "Rechercher appareils"}
-          </Button>
-          {isScanning && activeTab === "bluetooth" && (
-            <Button variant="outline" onClick={stopBluetoothScan}>
-              Arrêter
-            </Button>
-          )}
-        </div>
-
-        {/* Bluetooth Devices List */}
-        {activeTab === "bluetooth" && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Appareils Bluetooth</CardTitle>
-              <CardDescription>{bluetoothDevices.length} appareil(s) détecté(s)</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {bluetoothDevices.length === 0 ? (
-                <Alert>
-                  <AlertDescription>
-                    Aucun appareil. Lance une recherche pour trouver ta Gear 360
-                  </AlertDescription>
-                </Alert>
-              ) : (
-                bluetoothDevices.map((device) => (
-                  <div
-                    key={device.id}
-                    className="flex items-center justify-between p-3 rounded-lg border bg-card"
-                  >
-                    <div className="flex-1">
-                      <h3 className="font-medium">{device.name || "Nom inconnu"}</h3>
-                      <p className="text-sm text-muted-foreground">
-                        {device.address} • RSSI {device.rssi ?? "—"}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        Services: {device.services?.join(", ") || "—"}
-                      </p>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        onClick={() => connectBluetooth(device)}
-                        disabled={connectedDevice?.id === device.id}
-                      >
-                        {connectedDevice?.id === device.id ? "Connecté" : "Connecter"}
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => pairDevice(device)}
-                        disabled={device.paired}
-                      >
-                        {device.paired ? "Appairé" : "Appairer"}
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => removeDevice(device.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                ))
+            {/* Actions */}
+            <div className="flex gap-2">
+              <Button
+                onClick={activeTab === "bluetooth" ? startBluetoothScan : scanWifiNetworks}
+                disabled={isScanning}
+                className="flex-1"
+              >
+                <RefreshCw className={`mr-2 h-4 w-4 ${isScanning ? "animate-spin" : ""}`} />
+                {isScanning ? "Recherche..." : "Rechercher appareils"}
+              </Button>
+              {isScanning && activeTab === "bluetooth" && (
+                <Button variant="outline" onClick={stopBluetoothScan}>
+                  Arrêter
+                </Button>
               )}
-            </CardContent>
-          </Card>
-        )}
+            </div>
 
-        {/* WiFi Networks List */}
-        {activeTab === "wifi" && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Réseaux Wi-Fi</CardTitle>
-              <CardDescription>{wifiNetworks.length} réseau(x) disponible(s)</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {wifiNetworks.length === 0 ? (
-                <Alert>
-                  <AlertDescription>
-                    Aucun réseau scanné. Lance un scan pour détecter les réseaux Gear 360
-                  </AlertDescription>
-                </Alert>
-              ) : (
-                wifiNetworks.map((network, idx) => (
-                  <div
-                    key={idx}
-                    className="flex items-center justify-between p-3 rounded-lg border bg-card"
-                  >
-                    <div>
-                      <h3 className="font-medium">{network.ssid}</h3>
-                      <p className="text-sm text-muted-foreground">
-                        Signal: {network.level} dBm • {network.security}
-                      </p>
-                      {network.isGear360 && (
-                        <span className="text-xs text-primary font-medium">Gear 360</span>
-                      )}
-                    </div>
+            {/* Bluetooth Devices List */}
+            {activeTab === "bluetooth" && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Appareils Bluetooth</CardTitle>
+                  <CardDescription>{bluetoothDevices.length} appareil(s) détecté(s)</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {bluetoothDevices.length === 0 ? (
+                    <Alert>
+                      <AlertDescription>
+                        Aucun appareil. Lance une recherche pour trouver ta Gear 360
+                      </AlertDescription>
+                    </Alert>
+                  ) : (
+                    bluetoothDevices.map((device) => (
+                      <div
+                        key={device.id}
+                        className="flex items-center justify-between p-3 rounded-lg border bg-card"
+                      >
+                        <div className="flex-1">
+                          <h3 className="font-medium">{device.name || "Nom inconnu"}</h3>
+                          <p className="text-sm text-muted-foreground">
+                            {device.address} • RSSI {device.rssi ?? "—"}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            Services: {device.services?.join(", ") || "—"}
+                          </p>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            onClick={() => connectBluetooth(device)}
+                            disabled={connectedDevice?.id === device.id}
+                          >
+                            {connectedDevice?.id === device.id ? "Connecté" : "Connecter"}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => pairDevice(device)}
+                            disabled={device.paired}
+                          >
+                            {device.paired ? "Appairé" : "Appairer"}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => removeDevice(device.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* WiFi Networks List */}
+            {activeTab === "wifi" && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Réseaux Wi-Fi</CardTitle>
+                  <CardDescription>{wifiNetworks.length} réseau(x) disponible(s)</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {wifiNetworks.length === 0 ? (
+                    <Alert>
+                      <AlertDescription>
+                        Aucun réseau scanné. Lance un scan pour détecter les réseaux Gear 360
+                      </AlertDescription>
+                    </Alert>
+                  ) : (
+                    wifiNetworks.map((network, idx) => (
+                      <div
+                        key={idx}
+                        className="flex items-center justify-between p-3 rounded-lg border bg-card"
+                      >
+                        <div>
+                          <h3 className="font-medium">{network.ssid}</h3>
+                          <p className="text-sm text-muted-foreground">
+                            Signal: {network.level} dBm • {network.security}
+                          </p>
+                          {network.isGear360 && (
+                            <span className="text-xs text-primary font-medium">Gear 360</span>
+                          )}
+                        </div>
+                        <Button
+                          size="sm"
+                          onClick={() => {
+                            setSelectedNetwork(network);
+                            setShowPasswordDialog(true);
+                          }}
+                        >
+                          Se connecter
+                        </Button>
+                      </div>
+                    ))
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Control Panel - Only when connected */}
+            {connectedDevice && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>{connectedDevice.name}</CardTitle>
+                  <CardDescription>{connectedDevice.address}</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                     <Button
-                      size="sm"
-                      onClick={() => {
-                        setSelectedNetwork(network);
-                        setShowPasswordDialog(true);
-                      }}
+                      onClick={() => sendCommand("capture_photo")}
+                      disabled={!!loadingCommand}
+                      className="h-auto py-4 flex-col"
                     >
-                      Se connecter
+                      <Camera className="h-6 w-6 mb-2" />
+                      <span>Photo</span>
+                    </Button>
+
+                    <Button
+                      onClick={() => sendCommand("start_recording")}
+                      disabled={!!loadingCommand}
+                      className="h-auto py-4 flex-col"
+                    >
+                      <Video className="h-6 w-6 mb-2" />
+                      <span>Démarrer vidéo</span>
+                    </Button>
+
+                    <Button
+                      onClick={() => sendCommand("stop_recording")}
+                      disabled={!!loadingCommand}
+                      className="h-auto py-4 flex-col"
+                    >
+                      <Square className="h-6 w-6 mb-2" />
+                      <span>Arrêter vidéo</span>
+                    </Button>
+
+                    <Button
+                      onClick={() => sendCommand("get_battery")}
+                      disabled={!!loadingCommand}
+                      variant="outline"
+                      className="h-auto py-4 flex-col"
+                    >
+                      <Battery className="h-6 w-6 mb-2" />
+                      <span>Batterie</span>
+                    </Button>
+
+                    <Button
+                      onClick={() => sendCommand("get_settings")}
+                      disabled={!!loadingCommand}
+                      variant="outline"
+                      className="h-auto py-4 flex-col"
+                    >
+                      <SettingsIcon className="h-6 w-6 mb-2" />
+                      <span>Réglages</span>
+                    </Button>
+
+                    <Button
+                      onClick={() => setShowDisconnectDialog(true)}
+                      variant="destructive"
+                      className="h-auto py-4 flex-col"
+                    >
+                      <Bluetooth className="h-6 w-6 mb-2" />
+                      <span>Déconnecter</span>
                     </Button>
                   </div>
-                ))
-              )}
-            </CardContent>
-          </Card>
-        )}
 
-        {/* Control Panel - Only when connected */}
-        {connectedDevice && (
-          <Card>
-            <CardHeader>
-              <CardTitle>{connectedDevice.name}</CardTitle>
-              <CardDescription>{connectedDevice.address}</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                <Button
-                  onClick={() => sendCommand("capture_photo")}
-                  disabled={!!loadingCommand}
-                  className="h-auto py-4 flex-col"
-                >
-                  <Camera className="h-6 w-6 mb-2" />
-                  <span>Photo</span>
-                </Button>
-
-                <Button
-                  onClick={() => sendCommand("start_recording")}
-                  disabled={!!loadingCommand}
-                  className="h-auto py-4 flex-col"
-                >
-                  <Video className="h-6 w-6 mb-2" />
-                  <span>Démarrer vidéo</span>
-                </Button>
-
-                <Button
-                  onClick={() => sendCommand("stop_recording")}
-                  disabled={!!loadingCommand}
-                  className="h-auto py-4 flex-col"
-                >
-                  <Square className="h-6 w-6 mb-2" />
-                  <span>Arrêter vidéo</span>
-                </Button>
-
-                <Button
-                  onClick={() => sendCommand("get_battery")}
-                  disabled={!!loadingCommand}
-                  variant="outline"
-                  className="h-auto py-4 flex-col"
-                >
-                  <Battery className="h-6 w-6 mb-2" />
-                  <span>Batterie</span>
-                </Button>
-
-                <Button
-                  onClick={() => sendCommand("get_settings")}
-                  disabled={!!loadingCommand}
-                  variant="outline"
-                  className="h-auto py-4 flex-col"
-                >
-                  <SettingsIcon className="h-6 w-6 mb-2" />
-                  <span>Réglages</span>
-                </Button>
-
-                <Button
-                  onClick={() => setShowDisconnectDialog(true)}
-                  variant="destructive"
-                  className="h-auto py-4 flex-col"
-                >
-                  <Bluetooth className="h-6 w-6 mb-2" />
-                  <span>Déconnecter</span>
-                </Button>
-              </div>
-
-              {/* Notifications */}
-              <div className="space-y-2">
-                <h3 className="font-medium">Notifications récentes</h3>
-                {notifications.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">Aucune notification</p>
-                ) : (
-                  <div className="space-y-2 max-h-48 overflow-y-auto">
-                    {notifications.slice(0, 6).map((notif) => (
-                      <div
-                        key={notif.id}
-                        className="p-2 rounded border-l-2 border-primary/20 bg-secondary/20 text-sm"
-                      >
-                        <div className="text-xs text-muted-foreground">
-                          {notif.date.toLocaleTimeString()}
-                        </div>
-                        <pre className="text-xs mt-1 overflow-x-auto">
-                          {JSON.stringify(notif.data, null, 2)}
-                        </pre>
+                  {/* Notifications */}
+                  <div className="space-y-2">
+                    <h3 className="font-medium">Notifications récentes</h3>
+                    {notifications.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">Aucune notification</p>
+                    ) : (
+                      <div className="space-y-2 max-h-48 overflow-y-auto">
+                        {notifications.slice(0, 6).map((notif) => (
+                          <div
+                            key={notif.id}
+                            className="p-2 rounded border-l-2 border-primary/20 bg-secondary/20 text-sm"
+                          >
+                            <div className="text-xs text-muted-foreground">
+                              {notif.date.toLocaleTimeString()}
+                            </div>
+                            <pre className="text-xs mt-1 overflow-x-auto">
+                              {JSON.stringify(notif.data, null, 2)}
+                            </pre>
+                          </div>
+                        ))}
                       </div>
-                    ))}
+                    )}
                   </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        )}
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
         </Tabs>
       </main>

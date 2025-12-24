@@ -26,7 +26,7 @@ export abstract class MLModel<TInput = unknown, TOutput = unknown> {
     deviceUtilization: 0
   };
 
-  private listeners: Map<keyof ModelEventMap, Set<ModelEventListener<any>>> = new Map();
+  private listeners: Map<keyof ModelEventMap, Set<ModelEventListener<keyof ModelEventMap>>> = new Map();
   private inferenceHistory: number[] = [];
 
   constructor(config: ModelConfig) {
@@ -50,14 +50,33 @@ export abstract class MLModel<TInput = unknown, TOutput = unknown> {
   protected abstract preprocess(input: TInput): Record<string, Tensor>;
   protected abstract postprocess(outputs: Record<string, Tensor>): TOutput;
 
+  // Image processing utility methods (example, can be moved to a separate utility class)
+  protected enhanceImage(image: ArrayBuffer, params?: { brightness?: number; contrast?: number }): ArrayBuffer {
+    const imageData = new Uint8Array(image);
+    const brightness = params?.brightness ?? 1.0;
+    const contrast = params?.contrast ?? 1.0;
+    // Placeholder for actual image enhancement logic
+    // In a real scenario, this would involve iterating over pixels and applying transformations.
+    // For now, we return the original image buffer.
+    console.log(`Enhancing image with brightness: ${brightness}, contrast: ${contrast}`);
+    return image;
+  }
+
+  protected applyHDR(image: ArrayBuffer, params?: { intensity?: number }): ArrayBuffer {
+    const intensity = params?.intensity ?? 1.0;
+    // Placeholder for actual HDR application logic
+    console.log(`Applying HDR with intensity: ${intensity}`);
+    return image;
+  }
+
   async load(): Promise<void> {
     if (this.state === 'ready') return;
-    
+
     this.setState('loading');
-    
+
     try {
       await this.loadModelImpl();
-      
+
       // Warmup runs
       if (this.config.warmupRuns && this.config.warmupRuns > 0) {
         console.log(`🔥 Running ${this.config.warmupRuns} warmup inference(s)...`);
@@ -65,14 +84,14 @@ export abstract class MLModel<TInput = unknown, TOutput = unknown> {
           await this.warmup();
         }
       }
-      
+
       this.setState('ready');
       console.log(`✅ Model loaded: ${this.metadata?.name || this.config.modelPath}`);
     } catch (error) {
       this.setState('error');
-      this.emit('error', { 
-        error: error instanceof Error ? error : new Error(String(error)), 
-        context: 'load' 
+      this.emit('error', {
+        error: error instanceof Error ? error : new Error(String(error)),
+        context: 'load'
       });
       throw error;
     }
@@ -84,7 +103,7 @@ export abstract class MLModel<TInput = unknown, TOutput = unknown> {
     }
 
     const startTotal = performance.now();
-    
+
     // Preprocess
     const preprocessStart = performance.now();
     const tensorInputs = this.preprocess(input);
@@ -120,17 +139,17 @@ export abstract class MLModel<TInput = unknown, TOutput = unknown> {
 
   async predictBatch(inputs: TInput[], options?: InferenceOptions): Promise<InferenceResult<TOutput>[]> {
     const results: InferenceResult<TOutput>[] = [];
-    
+
     for (const input of inputs) {
       results.push(await this.predict(input, options));
     }
-    
+
     return results;
   }
 
   dispose(): void {
     if (this.state === 'disposed') return;
-    
+
     this.disposeImpl();
     this.setState('disposed');
     this.listeners.clear();
@@ -179,7 +198,7 @@ export abstract class MLModel<TInput = unknown, TOutput = unknown> {
   // Performance tracking
   private updateMetrics(inferenceTimeMs: number): void {
     this.inferenceHistory.push(inferenceTimeMs);
-    
+
     // Keep last 100 inferences for rolling average
     if (this.inferenceHistory.length > 100) {
       this.inferenceHistory.shift();
@@ -188,7 +207,7 @@ export abstract class MLModel<TInput = unknown, TOutput = unknown> {
     this.metrics.totalInferences++;
     this.metrics.minInferenceMs = Math.min(this.metrics.minInferenceMs, inferenceTimeMs);
     this.metrics.maxInferenceMs = Math.max(this.metrics.maxInferenceMs, inferenceTimeMs);
-    this.metrics.averageInferenceMs = 
+    this.metrics.averageInferenceMs =
       this.inferenceHistory.reduce((a, b) => a + b, 0) / this.inferenceHistory.length;
     this.metrics.memoryUsageMB = this.getMemoryUsage();
 
@@ -204,7 +223,8 @@ export abstract class MLModel<TInput = unknown, TOutput = unknown> {
     // Check WebGPU support
     if ('gpu' in navigator) {
       try {
-        const adapter = await (navigator as any).gpu.requestAdapter();
+        const gpu = (navigator as unknown as { gpu: { requestAdapter: () => Promise<unknown> } }).gpu;
+        const adapter = await gpu.requestAdapter();
         if (adapter) {
           console.log('🎮 WebGPU available, using GPU acceleration');
           return 'webgpu';

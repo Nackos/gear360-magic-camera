@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import { PoseLandmarker, FilesetResolver, DrawingUtils } from '@mediapipe/tasks-vision';
+import { PoseLandmarker, FilesetResolver, DrawingUtils, NormalizedLandmark } from '@mediapipe/tasks-vision';
 import { Card } from './ui/card';
 import { Badge } from './ui/badge';
 
 interface PoseData {
-  landmarks: any[];
-  worldLandmarks: any[];
+  landmarks: { x: number; y: number; z: number; visibility?: number }[];
+  worldLandmarks: { x: number; y: number; z: number; visibility?: number }[];
   confidence: number;
 }
 
@@ -16,9 +16,12 @@ interface FullBodyEstimationProps {
 }
 
 // Extracted function to calculate pose data
-const processPoseData = (landmarks: any[], worldLandmarks: any[]): PoseData => {
+const processPoseData = (
+  landmarks: { x: number; y: number; z: number; visibility?: number }[],
+  worldLandmarks: { x: number; y: number; z: number; visibility?: number }[]
+): PoseData => {
   let totalConfidence = 0;
-  landmarks.forEach((landmark: any) => {
+  landmarks.forEach((landmark) => {
     totalConfidence += landmark.visibility || 0;
   });
   const avgConfidence = totalConfidence / landmarks.length;
@@ -31,13 +34,16 @@ const processPoseData = (landmarks: any[], worldLandmarks: any[]): PoseData => {
 };
 
 // Extracted function to draw pose
-const drawPose = (drawingUtils: DrawingUtils, landmarks: any[]) => {
-  drawingUtils.drawLandmarks(landmarks, {
-    radius: (data: any) => DrawingUtils.lerp(data.from!.z, -0.15, 0.1, 5, 1)
+const drawPose = (drawingUtils: DrawingUtils, landmarks: { x: number; y: number; z: number; visibility?: number }[]) => {
+  drawingUtils.drawLandmarks(landmarks as unknown as NormalizedLandmark[], {
+    radius: (data: unknown) => {
+      const d = data as { from?: { z: number } };
+      return DrawingUtils.lerp(d.from?.z || 0, -0.15, 0.1, 5, 1);
+    }
   });
 
   drawingUtils.drawConnectors(
-    landmarks,
+    landmarks as unknown as NormalizedLandmark[],
     PoseLandmarker.POSE_CONNECTIONS,
     { color: '#00FF00', lineWidth: 2 }
   );

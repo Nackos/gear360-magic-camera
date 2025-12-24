@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Hand, Activity, Zap } from 'lucide-react';
@@ -102,7 +102,7 @@ export const GestureRecognition = ({
   };
 
   // Détection de swipe basée sur mouvement temporel
-  const detectSwipeGesture = (buffer: KeypointData[][]): GestureData | null => {
+  const detectSwipeGesture = useCallback((buffer: KeypointData[][]): GestureData | null => {
     if (buffer.length < settings.gesture.windowSize) return null;
 
     const firstFrame = buffer[0];
@@ -134,10 +134,10 @@ export const GestureRecognition = ({
       confidence,
       timestamp: Date.now()
     };
-  };
+  }, [settings.gesture.windowSize]);
 
   // Simuler MediaPipe Hands (en réalité il faudrait importer MediaPipe)
-  const processFrame = async () => {
+  const processFrame = useCallback(async () => {
     if (!videoRef.current || !canvasRef.current) return;
 
     const video = videoRef.current;
@@ -223,7 +223,7 @@ export const GestureRecognition = ({
     }
 
     animationFrameRef.current = requestAnimationFrame(processFrame);
-  };
+  }, [onGestureDetected, onCommandTriggered, settings, toast, videoRef, detectSwipeGesture]);
 
   useEffect(() => {
     if (!isActive) return;
@@ -237,7 +237,7 @@ export const GestureRecognition = ({
       }
       setIsProcessing(false);
     };
-  }, [isActive, videoRef]);
+  }, [isActive, processFrame]);
 
   if (!isActive) return null;
 

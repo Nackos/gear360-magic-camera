@@ -24,7 +24,7 @@ export const VRViewer360 = ({ imageUrl, onClose }: VRViewer360Props) => {
 
     const img = new Image();
     img.crossOrigin = "anonymous";
-    
+
     img.onload = () => {
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
@@ -37,16 +37,16 @@ export const VRViewer360 = ({ imageUrl, onClose }: VRViewer360Props) => {
       if (!ctx || !canvas) return;
 
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      
+
       ctx.save();
       ctx.translate(canvas.width / 2, canvas.height / 2);
       ctx.rotate(rotation.y * Math.PI / 180);
       ctx.translate(-canvas.width / 2, -canvas.height / 2);
-      
+
       const aspectRatio = img.width / img.height;
       let drawWidth = canvas.width;
       let drawHeight = canvas.width / aspectRatio;
-      
+
       if (drawHeight < canvas.height) {
         drawHeight = canvas.height;
         drawWidth = canvas.height * aspectRatio;
@@ -59,7 +59,7 @@ export const VRViewer360 = ({ imageUrl, onClose }: VRViewer360Props) => {
         drawWidth,
         drawHeight
       );
-      
+
       ctx.restore();
 
       animationFrameRef.current = requestAnimationFrame(render);
@@ -83,7 +83,7 @@ export const VRViewer360 = ({ imageUrl, onClose }: VRViewer360Props) => {
           beta: event.beta,
           gamma: event.gamma
         };
-        
+
         setRotation({
           x: event.beta - 90,
           y: event.gamma
@@ -170,9 +170,13 @@ export const VRViewer360 = ({ imageUrl, onClose }: VRViewer360Props) => {
   const toggleVRMode = async () => {
     if (!isVRMode) {
       // Request device orientation permission on iOS
-      if (typeof (DeviceOrientationEvent as any).requestPermission === 'function') {
+      const DeviceOrientationEventAny = DeviceOrientationEvent as unknown as {
+        requestPermission?: () => Promise<'granted' | 'denied'>;
+      };
+
+      if (typeof DeviceOrientationEventAny.requestPermission === 'function') {
         try {
-          const permission = await (DeviceOrientationEvent as any).requestPermission();
+          const permission = await DeviceOrientationEventAny.requestPermission();
           if (permission === 'granted') {
             setIsVRMode(true);
           }
@@ -197,7 +201,7 @@ export const VRViewer360 = ({ imageUrl, onClose }: VRViewer360Props) => {
         ref={canvasRef}
         className="w-full h-full"
       />
-      
+
       <div className="absolute top-4 left-4 right-4 flex justify-between items-start z-10">
         <Card className="bg-black/50 backdrop-blur-sm border-white/20 p-2">
           <div className="flex gap-2">

@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { loadAISettings } from '@/config/aiDetectionConfig';
@@ -21,12 +21,12 @@ export const CommandController = ({ onCommand }: CommandControllerProps) => {
   const { toast } = useToast();
   const settings = loadAISettings();
 
-  const executeCommand = (command: string, gestureType: string) => {
+  const executeCommand = useCallback((command: string, gestureType: string) => {
     console.log(`Exécution de la commande: ${command} (geste: ${gestureType})`);
 
     // Mapper les commandes aux actions de l'application
     switch (command) {
-      case 'capture':
+      case 'capture': {
         // Déclencher capture photo
         const captureEvent = new CustomEvent('gesture-capture');
         window.dispatchEvent(captureEvent);
@@ -36,9 +36,10 @@ export const CommandController = ({ onCommand }: CommandControllerProps) => {
           duration: 2000
         });
         break;
+      }
 
       case 'pause':
-      case 'stop_recording':
+      case 'stop_recording': {
         // Arrêter l'enregistrement vidéo
         const stopEvent = new CustomEvent('gesture-stop-recording');
         window.dispatchEvent(stopEvent);
@@ -48,6 +49,7 @@ export const CommandController = ({ onCommand }: CommandControllerProps) => {
           duration: 2000
         });
         break;
+      }
 
       case 'next':
         // Navigation suivant (galerie)
@@ -85,7 +87,7 @@ export const CommandController = ({ onCommand }: CommandControllerProps) => {
         });
         break;
 
-      case 'selfie':
+      case 'selfie': {
         // Activer mode selfie
         const selfieEvent = new CustomEvent('gesture-selfie-mode');
         window.dispatchEvent(selfieEvent);
@@ -95,8 +97,9 @@ export const CommandController = ({ onCommand }: CommandControllerProps) => {
           duration: 2000
         });
         break;
+      }
 
-      case 'switch_camera':
+      case 'switch_camera': {
         // Changer de caméra
         const switchEvent = new CustomEvent('gesture-switch-camera');
         window.dispatchEvent(switchEvent);
@@ -106,21 +109,24 @@ export const CommandController = ({ onCommand }: CommandControllerProps) => {
           duration: 2000
         });
         break;
+      }
 
-      case 'zoom_in':
+      case 'zoom_in': {
         // Zoom avant
         const zoomInEvent = new CustomEvent('gesture-zoom-in');
         window.dispatchEvent(zoomInEvent);
         break;
+      }
 
       case 'scroll_up':
-      case 'scroll_down':
+      case 'scroll_down': {
         // Défiler
         const scrollEvent = new CustomEvent('gesture-scroll', {
           detail: { direction: command.includes('up') ? 'up' : 'down' }
         });
         window.dispatchEvent(scrollEvent);
         break;
+      }
 
       case 'confirm':
         // Confirmation
@@ -131,11 +137,12 @@ export const CommandController = ({ onCommand }: CommandControllerProps) => {
         });
         break;
 
-      case 'select':
+      case 'select': {
         // Sélection
         const selectEvent = new CustomEvent('gesture-select');
         window.dispatchEvent(selectEvent);
         break;
+      }
 
       default:
         console.log(`Commande non mappée: ${command}`);
@@ -145,13 +152,13 @@ export const CommandController = ({ onCommand }: CommandControllerProps) => {
     if (onCommand) {
       onCommand(command);
     }
-  };
+  }, [onCommand, toast]);
 
   useEffect(() => {
     // Écouter les événements de commandes gestuelles
     const handleGestureCommand = (event: CustomEvent<GestureCommand>) => {
       const { action, gesture } = event.detail;
-      
+
       // Vérifier la confiance minimum
       if (gesture.confidence >= settings.commands.defaultActionConfidence) {
         executeCommand(action, gesture.type);
@@ -163,26 +170,8 @@ export const CommandController = ({ onCommand }: CommandControllerProps) => {
     return () => {
       window.removeEventListener('gesture-command', handleGestureCommand as EventListener);
     };
-  }, [settings]);
+  }, [executeCommand, settings.commands.defaultActionConfidence]);
 
   return null; // Composant logique uniquement
 };
 
-// Hook pour déclencher des commandes depuis n'importe où
-export const useGestureCommand = () => {
-  const triggerCommand = (action: string, gestureType: string, confidence: number = 1.0) => {
-    const event = new CustomEvent('gesture-command', {
-      detail: {
-        action,
-        gesture: {
-          type: gestureType,
-          confidence,
-          timestamp: Date.now()
-        }
-      }
-    });
-    window.dispatchEvent(event);
-  };
-
-  return { triggerCommand };
-};

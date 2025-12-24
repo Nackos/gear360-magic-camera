@@ -5,13 +5,34 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+interface Joint {
+  type: string;
+  position: { x: number; y: number; z: number };
+}
+
+interface SkeletonData {
+  joints: Joint[];
+}
+
+interface DepthData {
+  width: number;
+  height: number;
+  buffer: number[];
+}
+
+interface GestureData {
+  type: string;
+  confidence: number;
+  joints: Joint[];
+}
+
 interface KinectData {
   type: 'skeleton' | 'depth' | 'gesture';
-  data: any;
+  data: SkeletonData | DepthData | GestureData;
   timestamp: number;
 }
 
-serve(async (req) => {
+serve(async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -19,17 +40,17 @@ serve(async (req) => {
   try {
     const kinectData: KinectData = await req.json();
 
-    let processedData;
+    let processedData: unknown;
 
     switch (kinectData.type) {
       case 'skeleton':
-        processedData = await processSkeleton(kinectData.data);
+        processedData = await processSkeleton(kinectData.data as SkeletonData);
         break;
       case 'depth':
-        processedData = await processDepth(kinectData.data);
+        processedData = await processDepth(kinectData.data as DepthData);
         break;
       case 'gesture':
-        processedData = await processGesture(kinectData.data);
+        processedData = await processGesture(kinectData.data as GestureData);
         break;
       default:
         throw new Error("Unknown Kinect data type");
@@ -61,10 +82,10 @@ serve(async (req) => {
   }
 });
 
-async function processSkeleton(skeletonData: any) {
+async function processSkeleton(skeletonData: SkeletonData) {
   // Process skeleton tracking data
   const { joints } = skeletonData;
-  
+
   // Calculate body metrics
   const metrics = {
     height: calculateHeight(joints),
@@ -80,23 +101,23 @@ async function processSkeleton(skeletonData: any) {
   };
 }
 
-async function processDepth(depthData: any) {
+async function processDepth(depthData: DepthData) {
   // Process depth frame data
   const { width, height, buffer } = depthData;
-  
+
   // Generate point cloud or mesh
   const pointCloud = generatePointCloud(buffer, width, height);
-  
+
   return {
     pointCloud,
     statistics: calculateDepthStats(buffer)
   };
 }
 
-async function processGesture(gestureData: any) {
+async function processGesture(gestureData: GestureData) {
   // Process and recognize gestures
   const { type, confidence, joints } = gestureData;
-  
+
   return {
     recognized: type,
     confidence,
@@ -104,53 +125,53 @@ async function processGesture(gestureData: any) {
   };
 }
 
-function calculateHeight(joints: any[]): number {
+function calculateHeight(joints: Joint[]): number {
   const head = joints.find(j => j.type === 'Head');
   const foot = joints.find(j => j.type === 'FootLeft') || joints.find(j => j.type === 'FootRight');
-  
+
   if (!head || !foot) return 0;
-  
+
   return Math.abs(head.position.y - foot.position.y);
 }
 
-function calculateReach(joints: any[]): number {
+function calculateReach(joints: Joint[]): number {
   const leftHand = joints.find(j => j.type === 'HandLeft');
   const rightHand = joints.find(j => j.type === 'HandRight');
-  
+
   if (!leftHand || !rightHand) return 0;
-  
+
   const dx = rightHand.position.x - leftHand.position.x;
   const dy = rightHand.position.y - leftHand.position.y;
   const dz = rightHand.position.z - leftHand.position.z;
-  
+
   return Math.sqrt(dx * dx + dy * dy + dz * dz);
 }
 
-function analyzePosture(joints: any[]): string {
+function analyzePosture(joints: Joint[]): string {
   const spine = joints.find(j => j.type === 'SpineMid');
   const head = joints.find(j => j.type === 'Head');
-  
+
   if (!spine || !head) return 'unknown';
-  
+
   const angle = Math.atan2(head.position.x - spine.position.x, head.position.y - spine.position.y);
-  
+
   if (Math.abs(angle) < 0.2) return 'upright';
   if (angle > 0.2) return 'leaning_left';
   return 'leaning_right';
 }
 
-function detectActivity(joints: any[]): string {
+function detectActivity(joints: Joint[]): string {
   const rightHand = joints.find(j => j.type === 'HandRight');
   const head = joints.find(j => j.type === 'Head');
-  
+
   if (!rightHand || !head) return 'idle';
-  
+
   if (rightHand.position.y > head.position.y) return 'hand_raised';
-  
+
   return 'standing';
 }
 
-function normalizeJoints(joints: any[]) {
+function normalizeJoints(joints: Joint[]) {
   // Normalize joint coordinates to 0-1 range
   return joints.map(joint => ({
     ...joint,
@@ -164,7 +185,7 @@ function normalizeJoints(joints: any[]) {
 
 function generatePointCloud(buffer: number[], width: number, height: number) {
   const points = [];
-  
+
   for (let y = 0; y < height; y += 2) {
     for (let x = 0; x < width; x += 2) {
       const depth = buffer[y * width + x];
@@ -177,7 +198,7 @@ function generatePointCloud(buffer: number[], width: number, height: number) {
       }
     }
   }
-  
+
   return points;
 }
 
@@ -186,7 +207,7 @@ function calculateDepthStats(buffer: number[]) {
   let max = -Infinity;
   let sum = 0;
   let count = 0;
-  
+
   for (const depth of buffer) {
     if (depth > 0) {
       min = Math.min(min, depth);
@@ -195,7 +216,7 @@ function calculateDepthStats(buffer: number[]) {
       count++;
     }
   }
-  
+
   return {
     min,
     max,
@@ -213,6 +234,6 @@ function mapGestureToAction(gestureType: string): string {
     'thumbs_down': 'cancel',
     'push': 'capture'
   };
-  
+
   return gestureMap[gestureType] || 'unknown';
 }

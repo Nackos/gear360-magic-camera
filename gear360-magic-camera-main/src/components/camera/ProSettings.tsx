@@ -60,7 +60,7 @@ export const ProSettings = ({
         <SheetHeader>
           <SheetTitle>Paramètres Professionnels</SheetTitle>
         </SheetHeader>
-        
+
         <div className="space-y-6 mt-6">
           {/* Flash */}
           <div>
@@ -114,7 +114,7 @@ export const ProSettings = ({
           {/* White Balance */}
           <div>
             <Label className="text-sm font-medium mb-2 block">Balance des blancs</Label>
-            <Select value={whiteBalance} onValueChange={(v: any) => setWhiteBalance(v)}>
+            <Select value={whiteBalance} onValueChange={(v: 'auto' | 'daylight' | 'cloudy' | 'tungsten') => setWhiteBalance(v)}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
@@ -187,7 +187,7 @@ export const ProSettings = ({
           {/* Resolution */}
           <div>
             <Label className="text-sm font-medium mb-2 block">Résolution vidéo</Label>
-            <Select value={resolution} onValueChange={(v: any) => setResolution(v)}>
+            <Select value={resolution} onValueChange={(v: '4K' | '1080p' | '720p') => setResolution(v)}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
@@ -204,7 +204,7 @@ export const ProSettings = ({
           {/* FPS */}
           <div>
             <Label className="text-sm font-medium mb-2 block">Images par seconde</Label>
-            <Select value={fps.toString()} onValueChange={(v) => setFps(parseInt(v) as any)}>
+            <Select value={fps.toString()} onValueChange={(v) => setFps(parseInt(v) as 30 | 60 | 120)}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>

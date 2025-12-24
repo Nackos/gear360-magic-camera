@@ -3,7 +3,7 @@ import * as tf from '@tensorflow/tfjs';
 import { load as loadCocoSsd, ObjectDetection as CocoSsdModel } from '@tensorflow-models/coco-ssd';
 import { HandLandmarker, FilesetResolver, DrawingUtils } from '@mediapipe/tasks-vision';
 import { loadAISettings } from '@/config/aiDetectionConfig';
-import { useGestureCommand } from './CommandController';
+import { useGestureCommand } from '@/hooks/useGestureCommand';
 
 interface Detection {
   bbox: [number, number, number, number];
@@ -75,7 +75,7 @@ export const IntegratedDetectionPipeline = ({
         detectionModel.dispose();
       }
     };
-  }, []);
+  }, [detectionModel]);
 
   // Initialiser MediaPipe Hand Landmarker
   useEffect(() => {
@@ -112,7 +112,7 @@ export const IntegratedDetectionPipeline = ({
         handLandmarker.close();
       }
     };
-  }, []);
+  }, [handLandmarker, settings.pose.minDetectionConfidence, settings.pose.minTrackingConfidence]);
 
   // Classifier de gestes basé sur les keypoints
   const classifyGesture = useCallback((keypoints: HandKeypoint[]): { gesture: string; confidence: number } => {

@@ -60,9 +60,9 @@ export const CameraControls = () => {
     });
 
     return () => {
-      gear360Service.off('deviceConnected', () => {});
-      gear360Service.off('deviceDisconnected', () => {});
-      gear360Service.off('connectionError', () => {});
+      gear360Service.off('deviceConnected', () => { });
+      gear360Service.off('deviceDisconnected', () => { });
+      gear360Service.off('connectionError', () => { });
     };
   }, []);
 
@@ -99,13 +99,13 @@ export const CameraControls = () => {
         // Photo capture
         const element = document.querySelector('.capture-btn');
         element?.classList.add('animate-pulse-glow');
-        
+
         const photoUrl = await gear360Service.capturePhoto();
         toast({
           title: "Photo capturée",
           description: "Votre photo 360° a été prise avec succès",
         });
-        
+
         setTimeout(() => {
           element?.classList.remove('animate-pulse-glow');
         }, 500);
@@ -124,7 +124,7 @@ export const CameraControls = () => {
     // Logic to apply filter would go here
   };
 
-  const handleSettingsChange = (setting: string, value: any) => {
+  const handleSettingsChange = (setting: string, value: unknown) => {
     // Logic to change camera settings
     console.log(`Setting ${setting} to ${value}`);
   };
@@ -269,16 +269,16 @@ export const CameraControls = () => {
           videoRef={videoRef}
           isActive={objectDetectionActive}
         />
-        <FaceDetection 
-          videoRef={videoRef} 
-          isActive={faceDetectionActive} 
+        <FaceDetection
+          videoRef={videoRef}
+          isActive={faceDetectionActive}
         />
         <HolisticDetection
           videoRef={videoRef}
           isActive={holisticDetectionActive}
         />
         {aiFiltersActive && (
-          <AIFilters 
+          <AIFilters
             isActive={aiFiltersActive}
             videoRef={videoRef}
             settings={{

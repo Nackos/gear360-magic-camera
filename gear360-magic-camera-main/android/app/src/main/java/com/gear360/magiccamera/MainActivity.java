@@ -1,4 +1,4 @@
-package app.lovable.id4bc2049b140e4215849c3414348558df;
+package com.gear360.magiccamera;
 
 import com.getcapacitor.BridgeActivity;
 

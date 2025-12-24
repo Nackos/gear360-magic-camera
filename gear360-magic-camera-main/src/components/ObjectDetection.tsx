@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Scan } from 'lucide-react';
@@ -33,9 +33,9 @@ export const ObjectDetection = ({ videoRef, isActive, onDetectionsChange }: Obje
         cancelAnimationFrame(animationFrameRef.current);
       }
     };
-  }, [isActive]);
+  }, [isActive, model, initializeModel]);
 
-  const initializeModel = async () => {
+  const initializeModel = useCallback(async () => {
     try {
       setIsLoading(true);
       const loadedModel = await cocoSsd.load({
@@ -47,68 +47,74 @@ export const ObjectDetection = ({ videoRef, isActive, onDetectionsChange }: Obje
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
+
+  const detectObjects = useCallback(async () => {
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+
+    if (!video || !canvas || video.videoWidth === 0) {
+      animationFrameRef.current = requestAnimationFrame(detectObjects);
+      return;
+    }
+
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    try {
+      const predictions = await model!.detect(video); // model is guaranteed to be non-null by the useEffect condition
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      const detected: Detection[] = predictions.map(pred => ({
+        class: pred.class,
+        score: pred.score,
+        bbox: pred.bbox
+      }));
+
+      setDetections(detected);
+
+      if (onDetectionsChange) {
+        onDetectionsChange(detected);
+      }
+
+      // Dessiner les boîtes de détection
+      predictions.forEach(prediction => {
+        const [x, y, width, height] = prediction.bbox;
+
+        // Boîte
+        ctx.strokeStyle = '#00FF00';
+        ctx.lineWidth = 3;
+        ctx.strokeRect(x, y, width, height);
+
+        // Label avec fond
+        const text = `${prediction.class} ${Math.round(prediction.score * 100)}%`;
+        ctx.font = '16px Arial';
+        const textWidth = ctx.measureText(text).width;
+
+        ctx.fillStyle = '#00FF00';
+        ctx.fillRect(x, y - 25, textWidth + 10, 25);
+
+        ctx.fillStyle = '#000000';
+        ctx.fillText(text, x + 5, y - 7);
+      });
+    } catch (error) {
+      console.error('Erreur de détection:', error);
+    }
+
+    animationFrameRef.current = requestAnimationFrame(detectObjects);
+  }, [model, videoRef, onDetectionsChange]); // isActive is not a direct dependency of the detection logic itself
 
   useEffect(() => {
-    if (!model || !isActive || !videoRef.current) return;
-
-    const detectObjects = async () => {
-      const video = videoRef.current;
-      const canvas = canvasRef.current;
-      
-      if (!video || !canvas || video.videoWidth === 0) {
-        animationFrameRef.current = requestAnimationFrame(detectObjects);
-        return;
+    if (!model || !isActive || !videoRef.current) {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = undefined; // Clear ref when not active
       }
-
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
-
-      try {
-        const predictions = await model.detect(video);
-        
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        
-        const detected: Detection[] = predictions.map(pred => ({
-          class: pred.class,
-          score: pred.score,
-          bbox: pred.bbox
-        }));
-        
-        setDetections(detected);
-        
-        if (onDetectionsChange) {
-          onDetectionsChange(detected);
-        }
-
-        // Dessiner les boîtes de détection
-        predictions.forEach(prediction => {
-          const [x, y, width, height] = prediction.bbox;
-          
-          // Boîte
-          ctx.strokeStyle = '#00FF00';
-          ctx.lineWidth = 3;
-          ctx.strokeRect(x, y, width, height);
-          
-          // Label avec fond
-          const text = `${prediction.class} ${Math.round(prediction.score * 100)}%`;
-          ctx.font = '16px Arial';
-          const textWidth = ctx.measureText(text).width;
-          
-          ctx.fillStyle = '#00FF00';
-          ctx.fillRect(x, y - 25, textWidth + 10, 25);
-          
-          ctx.fillStyle = '#000000';
-          ctx.fillText(text, x + 5, y - 7);
-        });
-      } catch (error) {
-        console.error('Erreur de détection:', error);
-      }
-
-      animationFrameRef.current = requestAnimationFrame(detectObjects);
-    };
+      return;
+    }
 
     detectObjects();
 
@@ -117,7 +123,7 @@ export const ObjectDetection = ({ videoRef, isActive, onDetectionsChange }: Obje
         cancelAnimationFrame(animationFrameRef.current);
       }
     };
-  }, [model, isActive, videoRef]);
+  }, [isActive, model, videoRef, detectObjects]);
 
   if (!isActive) return null;
 

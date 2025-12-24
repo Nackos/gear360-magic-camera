@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Mic, MicOff, Volume2, VolumeX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -15,59 +15,73 @@ interface AIVoiceControlProps {
   isActive: boolean;
 }
 
+// Local types for Speech Recognition
+interface SpeechRecognitionEvent extends Event {
+  results: {
+    length: number;
+    [index: number]: {
+      length: number;
+      [index: number]: {
+        transcript: string;
+      };
+    };
+  };
+}
+
+interface SpeechRecognitionErrorEvent extends Event {
+  error: string;
+}
+
+interface CustomSpeechRecognition extends EventTarget {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  onresult: (event: SpeechRecognitionEvent) => void;
+  onerror: (event: SpeechRecognitionErrorEvent) => void;
+  onend: () => void;
+  start: () => void;
+  stop: () => void;
+}
+
 export const AIVoiceControl = ({ detections, isActive }: AIVoiceControlProps) => {
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [lastCommand, setLastCommand] = useState("");
   const [aiResponse, setAiResponse] = useState("");
-  const recognitionRef = useRef<any>(null);
+  const recognitionRef = useRef<CustomSpeechRecognition | null>(null);
+  const detectionsRef = useRef(detections);
   const { toast } = useToast();
 
+  // Update ref when detections change
   useEffect(() => {
-    if (!isActive) return;
+    detectionsRef.current = detections;
+  }, [detections]);
 
-    // Initialiser la reconnaissance vocale
-    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-      const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
-      recognitionRef.current = new SpeechRecognition();
-      recognitionRef.current.continuous = false;
-      recognitionRef.current.interimResults = false;
-      recognitionRef.current.lang = 'fr-FR';
+  const speak = useCallback((text: string) => {
+    if ('speechSynthesis' in window) {
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = 'fr-FR';
+      utterance.rate = 1;
+      utterance.pitch = 1;
 
-      recognitionRef.current.onresult = (event: any) => {
-        const transcript = event.results[0][0].transcript;
-        setLastCommand(transcript);
-        processCommand(transcript);
-      };
+      utterance.onstart = () => setIsSpeaking(true);
+      utterance.onend = () => setIsSpeaking(false);
 
-      recognitionRef.current.onerror = (event: any) => {
-        console.error('Erreur de reconnaissance vocale:', event.error);
-        setIsListening(false);
-      };
-
-      recognitionRef.current.onend = () => {
-        setIsListening(false);
-      };
+      window.speechSynthesis.speak(utterance);
     }
+  }, []);
 
-    return () => {
-      if (recognitionRef.current) {
-        recognitionRef.current.stop();
-      }
-    };
-  }, [isActive]);
-
-  const processCommand = (command: string) => {
+  const processCommand = useCallback((command: string) => {
     const lowerCommand = command.toLowerCase();
     let response = "";
 
     // Commandes de comptage
     if (lowerCommand.includes("combien") || lowerCommand.includes("nombre")) {
       if (lowerCommand.includes("personne") || lowerCommand.includes("gens")) {
-        const peopleCount = detections.filter(d => d.class === "person").length;
+        const peopleCount = detectionsRef.current.filter(d => d.class === "person").length;
         response = `Je vois ${peopleCount} personne${peopleCount > 1 ? 's' : ''}.`;
       } else if (lowerCommand.includes("objet")) {
-        response = `Je détecte ${detections.length} objet${detections.length > 1 ? 's' : ''}.`;
+        response = `Je détecte ${detectionsRef.current.length} objet${detectionsRef.current.length > 1 ? 's' : ''}.`;
       }
     }
 
@@ -78,7 +92,7 @@ export const AIVoiceControl = ({ detections, isActive }: AIVoiceControlProps) =>
       const searchTerm = (splitByOu.length > 1 ? splitByOu[1] : splitByTrouve[1])?.trim();
 
       const foundObjects = searchTerm
-        ? detections.filter(d =>
+        ? detectionsRef.current.filter(d =>
           searchTerm.toLowerCase().includes(d.class.toLowerCase())
         )
         : [];
@@ -92,10 +106,10 @@ export const AIVoiceControl = ({ detections, isActive }: AIVoiceControlProps) =>
 
     // Commandes d'information
     else if (lowerCommand.includes("que vois-tu") || lowerCommand.includes("qu'est-ce que tu vois")) {
-      if (detections.length === 0) {
+      if (detectionsRef.current.length === 0) {
         response = "Je ne détecte aucun objet pour le moment.";
       } else {
-        const uniqueClasses = [...new Set(detections.map(d => d.class))];
+        const uniqueClasses = [...new Set(detectionsRef.current.map(d => d.class))];
         response = `Je vois : ${uniqueClasses.slice(0, 3).join(", ")}.`;
       }
     }
@@ -164,21 +178,43 @@ export const AIVoiceControl = ({ detections, isActive }: AIVoiceControlProps) =>
     setLastCommand(command);
     setAiResponse(response);
     speak(response);
-  };
+  }, [speak]);
 
-  const speak = (text: string) => {
-    if ('speechSynthesis' in window) {
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = 'fr-FR';
-      utterance.rate = 1;
-      utterance.pitch = 1;
+  useEffect(() => {
+    if (!isActive) return;
 
-      utterance.onstart = () => setIsSpeaking(true);
-      utterance.onend = () => setIsSpeaking(false);
+    // Initialiser la reconnaissance vocale
+    const windowWithSpeech = window as unknown as { webkitSpeechRecognition: new () => CustomSpeechRecognition; SpeechRecognition: new () => CustomSpeechRecognition };
+    const SpeechRecognition = windowWithSpeech.webkitSpeechRecognition || windowWithSpeech.SpeechRecognition;
+    if (SpeechRecognition) {
+      const recognition = new SpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = false;
+      recognition.lang = 'fr-FR';
 
-      window.speechSynthesis.speak(utterance);
+      recognition.onresult = (event: SpeechRecognitionEvent) => {
+        const transcript = event.results[0][0].transcript;
+        processCommand(transcript);
+      };
+
+      recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
+        console.error('Erreur de reconnaissance vocale:', event.error);
+        setIsListening(false);
+      };
+
+      recognition.onend = () => {
+        setIsListening(false);
+      };
+
+      recognitionRef.current = recognition;
     }
-  };
+
+    return () => {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
+    };
+  }, [isActive, processCommand]);
 
   const toggleListening = () => {
     if (!recognitionRef.current) {

@@ -64,7 +64,7 @@ export const MultiDeviceConnectionPanel = () => {
       multiDeviceManager.off('deviceDisconnected', handleDisconnected);
       multiDeviceManager.off('devicePaired', handlePaired);
     };
-  }, []);
+  }, [refreshDevices]);
 
   const refreshDevices = useCallback(() => {
     setConnectedDevices(multiDeviceManager.getConnectedDevices());

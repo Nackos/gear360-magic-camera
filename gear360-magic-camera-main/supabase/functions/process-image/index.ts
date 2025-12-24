@@ -10,12 +10,22 @@ interface ImageProcessRequest {
   operations: ImageOperation[];
 }
 
-interface ImageOperation {
-  type: 'enhance' | 'denoise' | 'hdr' | 'stitch360' | 'depthMap' | 'objectRemoval';
-  params?: Record<string, any>;
-}
+type EnhanceParams = { brightness?: number; contrast?: number; };
+type DenoiseParams = { strength?: number; };
+type HdrParams = { intensity?: number; };
+type Stitch360Params = { mode?: string; };
+type DepthMapParams = unknown; // No specific params defined yet
+type ObjectRemovalParams = { mask?: [number, number][]; };
 
-serve(async (req) => {
+type ImageOperation =
+  | { type: 'enhance'; params?: EnhanceParams }
+  | { type: 'denoise'; params?: DenoiseParams }
+  | { type: 'hdr'; params?: HdrParams }
+  | { type: 'stitch360'; params?: Stitch360Params }
+  | { type: 'depthMap'; params?: DepthMapParams }
+  | { type: 'objectRemoval'; params?: ObjectRemovalParams };
+
+serve(async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -94,11 +104,11 @@ async function processOperation(
   }
 }
 
-function enhanceImage(image: ArrayBuffer, params?: Record<string, any>): ArrayBuffer {
+function enhanceImage(image: ArrayBuffer, params?: { brightness?: number; contrast?: number }): ArrayBuffer {
   const imageData = new Uint8Array(image);
   const brightness = params?.brightness ?? 1.0;
   const contrast = params?.contrast ?? 1.0;
-  
+
   const enhanced = new Uint8Array(imageData.length);
   for (let i = 0; i < imageData.length; i++) {
     let pixel = imageData[i];
@@ -106,30 +116,30 @@ function enhanceImage(image: ArrayBuffer, params?: Record<string, any>): ArrayBu
     pixel = ((pixel - 128) * contrast) + 128;
     enhanced[i] = Math.min(255, Math.max(0, pixel));
   }
-  
+
   return enhanced.buffer;
 }
 
-function denoiseImage(image: ArrayBuffer, params?: Record<string, any>): ArrayBuffer {
+function denoiseImage(image: ArrayBuffer, params?: { strength?: number }): ArrayBuffer {
   const strength = params?.strength ?? 0.5;
   return image;
 }
 
-function applyHDR(image: ArrayBuffer, params?: Record<string, any>): ArrayBuffer {
+function applyHDR(image: ArrayBuffer, params?: { intensity?: number }): ArrayBuffer {
   const intensity = params?.intensity ?? 1.0;
   return image;
 }
 
-function stitch360(image: ArrayBuffer, params?: Record<string, any>): ArrayBuffer {
+function stitch360(image: ArrayBuffer, params?: { mode?: string }): ArrayBuffer {
   const mode = params?.mode ?? 'equirectangular';
   return image;
 }
 
-function generateDepthMap(image: ArrayBuffer, params?: Record<string, any>): ArrayBuffer {
+function generateDepthMap(image: ArrayBuffer, _params?: unknown): ArrayBuffer {
   return image;
 }
 
-function removeObject(image: ArrayBuffer, params?: Record<string, any>): ArrayBuffer {
+function removeObject(image: ArrayBuffer, params?: { mask?: [number, number][] }): ArrayBuffer {
   const maskCoordinates = params?.mask ?? [];
   return image;
 }
